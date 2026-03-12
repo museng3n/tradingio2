@@ -1,0 +1,28 @@
+{
+  "version": "1.0.0",
+  "locked": true,
+  "reason": "Frontend is complete - Backend development only",
+  "protected_files": {
+    "frontend/TradingHub-Final-Fixed.html": {
+      "sha256": "34757816a0900f3da95793b1e52c89ee73e1994ebe4754e239bda5f589ed66cd",
+      "locked_at": "2025-12-11T01:15:00Z",
+      "size_bytes": 47882,
+      "description": "Complete TradingHub frontend with all features"
+    }
+  },
+  "rules": {
+    "modify_frontend": false,
+    "create_alternative_frontend": false,
+    "suggest_frontend_changes": false,
+    "read_for_reference": true
+  },
+  "violation_action": "STOP_IMMEDIATELY",
+  "contact": "Owner must approve any frontend changes",
+  "notes": [
+    "Frontend is complete and tested",
+    "All features implemented",
+    "Design approved by owner",
+    "Backend must be built to serve this frontend",
+    "Phase 6 may only add JavaScript API calls in <script> section"
+  ]
+}

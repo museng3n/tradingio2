@@ -1,31 +1,45 @@
 import { create } from 'zustand';
 import type { CanonicalPage } from '@/app/routes';
+import type { AuthenticatedUser, LoginSuccessResponse } from '@/features/auth/auth.api';
 
 const AUTH_STORAGE_KEY = 'tradinghub_auth';
 
-interface ShellUser {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  subscription: {
-    plan: string;
-    status: string;
-  };
+export interface AuthSession {
+  accessToken: string;
+  refreshToken: string;
+  user: AuthenticatedUser;
+}
+
+interface AuthStorageValue {
+  accessToken: string;
+  refreshToken: string;
+  user: AuthenticatedUser;
+}
+
+interface AppShellUser extends AuthenticatedUser {
   token: string;
 }
 
 interface AppShellState {
   currentPage: CanonicalPage;
   loginVisible: boolean;
-  user: ShellUser | null;
+  user: AppShellUser | null;
   setCurrentPage: (page: CanonicalPage) => void;
   showLogin: () => void;
   hideLogin: () => void;
-  setUser: (user: ShellUser | null) => void;
+  setUser: (user: AppShellUser | null) => void;
+  setAuthSession: (session: AuthSession) => void;
+  clearAuthSession: () => void;
   initializeAuth: () => void;
-  loginDevMode: (email: string, password: string) => Promise<{ success: boolean; user: ShellUser; token: string }>;
 }
+
+const persistAuthSession = (session: AuthStorageValue): void => {
+  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+};
+
+const clearPersistedAuthSession = (): void => {
+  window.localStorage.removeItem(AUTH_STORAGE_KEY);
+};
 
 export const useAppShellStore = create<AppShellState>((set) => ({
   currentPage: 'dashboard',
@@ -35,6 +49,23 @@ export const useAppShellStore = create<AppShellState>((set) => ({
   showLogin: () => set({ loginVisible: true }),
   hideLogin: () => set({ loginVisible: false }),
   setUser: (user) => set({ user }),
+  setAuthSession: (session) => {
+    persistAuthSession(session);
+    set({
+      user: {
+        ...session.user,
+        token: session.accessToken,
+      },
+      loginVisible: false,
+    });
+  },
+  clearAuthSession: () => {
+    clearPersistedAuthSession();
+    set({
+      user: null,
+      loginVisible: true,
+    });
+  },
   initializeAuth: () => {
     try {
       const saved = window.localStorage.getItem(AUTH_STORAGE_KEY);
@@ -44,13 +75,13 @@ export const useAppShellStore = create<AppShellState>((set) => ({
         return;
       }
 
-      const data = JSON.parse(saved) as { user?: Omit<ShellUser, 'token'>; token?: string };
+      const data = JSON.parse(saved) as Partial<AuthStorageValue>;
 
-      if (data.user && data.token) {
+      if (data.user && data.accessToken && data.refreshToken) {
         set({
           user: {
             ...data.user,
-            token: data.token,
+            token: data.accessToken,
           },
           loginVisible: false,
         });
@@ -61,43 +92,5 @@ export const useAppShellStore = create<AppShellState>((set) => ({
     }
 
     set({ user: null, loginVisible: true });
-  },
-  loginDevMode: async (email, _password) => {
-    const user = {
-      id: `dev_${Date.now()}`,
-      email,
-      name: email.split('@')[0] || email,
-      role: 'admin',
-      subscription: {
-        plan: 'pro',
-        status: 'active',
-      },
-    };
-    const token = `dev_token_${Date.now()}`;
-
-    window.localStorage.setItem(
-      AUTH_STORAGE_KEY,
-      JSON.stringify({
-        user,
-        token,
-      }),
-    );
-
-    set({
-      user: {
-        ...user,
-        token,
-      },
-      loginVisible: false,
-    });
-
-    return {
-      success: true,
-      user: {
-        ...user,
-        token,
-      },
-      token,
-    };
   },
 }));

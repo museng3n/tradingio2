@@ -1,5 +1,30 @@
+import { useQuery } from '@tanstack/react-query';
 import type { JSX } from 'react';
+import { getDashboardStats } from '@/features/dashboard/dashboard.api';
+import { useAppShellStore } from '@/features/auth/auth.store';
+
+const formatCurrency = (value: number): string =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+
 export function DashboardPage(): JSX.Element {
+  const user = useAppShellStore((state) => state.user);
+  const { data } = useQuery({
+    queryKey: ['dashboard-stats', user?.id],
+    queryFn: getDashboardStats,
+    enabled: user !== null,
+  });
+
+  const stats = data?.data;
+  const balanceValue = stats ? formatCurrency(stats.account.balance) : '$10,000.00';
+  const equityValue = stats ? formatCurrency(stats.account.equity) : '$10,000.00';
+  const dailyProfitValue = stats ? formatCurrency(stats.performance.todayProfit) : '$0.00';
+  const openPositionsValue = stats ? String(stats.positions.open) : '0';
+
   return (
     <>
       <div className="mb-6">
@@ -20,7 +45,7 @@ export function DashboardPage(): JSX.Element {
               />
             </svg>
           </div>
-          <div id="balance-value" className="text-2xl font-bold text-white">$10,000.00</div>
+          <div id="balance-value" className="text-2xl font-bold text-white">{balanceValue}</div>
           <div className="text-green-400 text-sm mt-1">+10.00% today</div>
         </div>
 
@@ -36,7 +61,7 @@ export function DashboardPage(): JSX.Element {
               />
             </svg>
           </div>
-          <div id="equity-value" className="text-2xl font-bold text-white">$10,000.00</div>
+          <div id="equity-value" className="text-2xl font-bold text-white">{equityValue}</div>
           <div className="text-green-400 text-sm mt-1">+10.00% today</div>
         </div>
 
@@ -63,7 +88,7 @@ export function DashboardPage(): JSX.Element {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
             </svg>
           </div>
-          <div id="open-positions-value" className="text-2xl font-bold text-white">0</div>
+          <div id="open-positions-value" className="text-2xl font-bold text-white">{openPositionsValue}</div>
         </div>
       </div>
 
@@ -75,7 +100,7 @@ export function DashboardPage(): JSX.Element {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
             </svg>
           </div>
-          <div id="daily-pl-value" className="text-2xl font-bold text-white">$0.00</div>
+          <div id="daily-pl-value" className="text-2xl font-bold text-white">{dailyProfitValue}</div>
           <div className="text-green-400 text-sm mt-1">+0.00%</div>
         </div>
 

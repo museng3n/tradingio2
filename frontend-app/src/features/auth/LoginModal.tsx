@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import type { JSX } from 'react';
 import { Modal } from '@/components/ui/Modal';
+import { login } from '@/features/auth/auth.api';
 import { useAppShellStore } from '@/features/auth/auth.store';
+import { ApiError } from '@/lib/api/client';
 
 export function LoginModal(): JSX.Element {
   const visible = useAppShellStore((state) => state.loginVisible);
   const hideLogin = useAppShellStore((state) => state.hideLogin);
-  const loginDevMode = useAppShellStore((state) => state.loginDevMode);
+  const setAuthSession = useAppShellStore((state) => state.setAuthSession);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorText, setErrorText] = useState('');
@@ -30,21 +32,35 @@ export function LoginModal(): JSX.Element {
             setSubmitting(true);
 
             try {
-              const result = await loginDevMode(email, password);
+              const response = await login({ email, password });
 
-              if (result.success) {
+              if ('requires2FA' in response && response.requires2FA) {
+                setErrorText('Two-factor verification is required for this account. This frontend slice does not implement the second-step 2FA screen yet.');
+                return;
+              }
+
+              if ('accessToken' in response) {
+                setAuthSession({
+                  accessToken: response.accessToken,
+                  refreshToken: response.refreshToken,
+                  user: response.user,
+                });
                 hideLogin();
-                window.location.reload();
                 return;
               }
 
               setErrorText('Login failed');
             } catch (error) {
               console.error('Login error:', error);
-              setErrorText('An error occurred. Please try again.');
-            }
 
-            setSubmitting(false);
+              if (error instanceof ApiError) {
+                setErrorText(error.message);
+              } else {
+                setErrorText('An error occurred. Please try again.');
+              }
+            } finally {
+              setSubmitting(false);
+            }
           }}
         >
           <div className="mb-4">
@@ -73,9 +89,6 @@ export function LoginModal(): JSX.Element {
           </div>
           <div id="loginError" className={`${errorText ? '' : 'hidden '}mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg`}>
             <p className="text-red-400 text-sm text-center">{errorText}</p>
-          </div>
-          <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/50 rounded-lg">
-            <p className="text-yellow-400 text-xs text-center">{'\u{1F527} DEV MODE: Any email/password will work'}</p>
           </div>
           <button
             type="submit"

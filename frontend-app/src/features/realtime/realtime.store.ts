@@ -6,6 +6,6 @@ interface RealtimeState {
 }
 
 export const useRealtimeStore = create<RealtimeState>((set) => ({
-  websocketLive: false,
+  websocketLive: true,
   setWebsocketLive: (live) => set({ websocketLive: live }),
 }));

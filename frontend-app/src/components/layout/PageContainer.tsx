@@ -10,11 +10,7 @@ interface PageContainerProps {
 
 export function PageContainer({ page, visible, children }: PageContainerProps): JSX.Element {
   return (
-    <div
-      id={CANONICAL_PAGE_IDS[page]}
-      className={`p-8${visible ? '' : ' hidden'}`}
-      data-canonical-page={page}
-    >
+    <div id={CANONICAL_PAGE_IDS[page]} className={`p-8${visible ? '' : ' hidden'}`}>
       {children}
     </div>
   );

@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { useRealtimeStore } from '@/features/realtime/realtime.store';
 
 export function ConnectionStatusPanel(): JSX.Element {

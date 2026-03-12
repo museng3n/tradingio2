@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { CANONICAL_PAGES, type CanonicalPage } from '@/app/routes';
 import { CANONICAL_NAV_IDS } from '@/app/canonical-mapping';
 import { useAppShellStore } from '@/features/auth/auth.store';

@@ -1,4 +1,4 @@
-import type { MouseEventHandler, ReactNode } from 'react';
+import type { JSX, MouseEventHandler, ReactNode } from 'react';
 
 interface TabButtonProps {
   active: boolean;

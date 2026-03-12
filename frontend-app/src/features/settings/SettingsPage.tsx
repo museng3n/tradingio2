@@ -1,4 +1,5 @@
 import { useMemo, useState, type KeyboardEvent } from 'react';
+import type { JSX } from 'react';
 
 type TpMode = 'template' | 'strategy' | 'opentp';
 type StrategyMode = 'equal' | 'weighted' | 'custom';
@@ -25,10 +26,15 @@ export function SettingsPage(): JSX.Element {
   ]);
   const [tpCounter, setTpCounter] = useState(3);
   const [tpSummaryTouched, setTpSummaryTouched] = useState(false);
+  const [tpSummaryValues, setTpSummaryValues] = useState<TpInput[]>([
+    { id: 1, value: '40' },
+    { id: 2, value: '35' },
+    { id: 3, value: '25' },
+  ]);
   const [symbolInput, setSymbolInput] = useState('');
   const [blockedSymbols, setBlockedSymbols] = useState<string[]>([]);
 
-  const totalPercentage = useMemo(() => tpInputs.reduce((total, input) => total + (parseFloat(input.value) || 0), 0), [tpInputs]);
+  const totalPercentage = useMemo(() => tpSummaryValues.reduce((total, input) => total + (parseFloat(input.value) || 0), 0), [tpSummaryValues]);
   const totalPercentageClassName = !tpSummaryTouched ? 'text-white font-bold' : totalPercentage === 100 ? 'text-green-400 font-bold' : 'text-yellow-400 font-bold';
 
   const toggleSwitchClassName = (active: boolean): string =>
@@ -37,6 +43,7 @@ export function SettingsPage(): JSX.Element {
   const circleStyle = (active: boolean): { transform: string } => ({
     transform: active ? 'translateX(24px)' : 'translateX(0)',
   });
+  const [moveSlTransform, setMoveSlTransform] = useState<string | null>(null);
 
   const handleAddBlockedSymbol = (): void => {
     const symbol = symbolInput.trim().toUpperCase();
@@ -75,6 +82,7 @@ export function SettingsPage(): JSX.Element {
     setTpCounter(nextId);
     setTpSummaryTouched(true);
     setTpInputs((current) => [...current, { id: nextId, value: '0' }]);
+    setTpSummaryValues((current) => [...current, { id: nextId, value: '0' }]);
   };
 
   const handleRemoveTP = (tpNum: number): void => {
@@ -86,6 +94,12 @@ export function SettingsPage(): JSX.Element {
       setTpSummaryTouched(true);
       return current.filter((input) => input.id !== tpNum);
     });
+    setTpSummaryValues((current) => current.filter((input) => input.id !== tpNum));
+  };
+
+  const handleCommitTPSummary = (): void => {
+    setTpSummaryTouched(true);
+    setTpSummaryValues(tpInputs);
   };
 
   return (
@@ -109,7 +123,7 @@ export function SettingsPage(): JSX.Element {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <label className="text-sm font-medium text-gray-300">Default Lot Size</label>
-                <span className="text-sm font-bold text-white">{defaultLotSize}</span>
+                <span className="text-sm font-bold text-white">0.01</span>
               </div>
               <input type="number" value={defaultLotSize} step="0.01" onChange={(event) => setDefaultLotSize(event.target.value)} className="w-full px-4 py-2 bg-black border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none" />
               <p className="text-xs text-gray-500 mt-2">Standard lot size for new positions</p>
@@ -127,7 +141,7 @@ export function SettingsPage(): JSX.Element {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <label className="text-sm font-medium text-gray-300">Max Open Positions</label>
-                <span className="text-sm font-bold text-white">{maxOpenPositions}</span>
+                <span className="text-sm font-bold text-white">5</span>
               </div>
               <input type="number" value={maxOpenPositions} onChange={(event) => setMaxOpenPositions(event.target.value)} className="w-full px-4 py-2 bg-black border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none" />
               <p className="text-xs text-gray-500 mt-2">Maximum simultaneous open positions</p>
@@ -191,8 +205,22 @@ export function SettingsPage(): JSX.Element {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <label className="text-sm font-medium text-gray-300">Move SL to Breakeven</label>
-                <button onClick={() => setMoveSlToBreakeven((current) => !current)} className={toggleSwitchClassName(moveSlToBreakeven)}>
-                  <div className="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform" style={circleStyle(moveSlToBreakeven)}></div>
+                <button
+                  onClick={() => {
+                    if (moveSlToBreakeven) {
+                      setMoveSlToBreakeven(false);
+                      setMoveSlTransform('translateX(0)');
+                    } else {
+                      setMoveSlToBreakeven(true);
+                      setMoveSlTransform('translateX(24px)');
+                    }
+                  }}
+                  className={toggleSwitchClassName(moveSlToBreakeven)}
+                >
+                  <div
+                    className="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
+                    style={moveSlTransform ? { transform: moveSlTransform } : undefined}
+                  ></div>
                 </button>
               </div>
               <p className="text-xs text-gray-500">Automatically move stop loss to entry price when target is reached</p>
@@ -241,7 +269,7 @@ export function SettingsPage(): JSX.Element {
               <div className="card-darker rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" checked readOnly className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500" />
+                    <input type="checkbox" defaultChecked className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500" />
                     <h4 className="font-semibold text-white">2 TPs Template</h4>
                   </div>
                   <button onClick={() => handleEditTemplate(2)} className="text-blue-400 hover:text-blue-300 text-sm font-medium">Edit</button>
@@ -255,7 +283,7 @@ export function SettingsPage(): JSX.Element {
               <div className="card-darker rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" checked readOnly className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500" />
+                    <input type="checkbox" defaultChecked className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500" />
                     <h4 className="font-semibold text-white">3 TPs Template</h4>
                   </div>
                   <button onClick={() => handleEditTemplate(3)} className="text-blue-400 hover:text-blue-300 text-sm font-medium">Edit</button>
@@ -270,7 +298,7 @@ export function SettingsPage(): JSX.Element {
               <div className="card-darker rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" checked readOnly className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500" />
+                    <input type="checkbox" defaultChecked className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500" />
                     <h4 className="font-semibold text-white">4 TPs Template</h4>
                   </div>
                   <button onClick={() => handleEditTemplate(4)} className="text-blue-400 hover:text-blue-300 text-sm font-medium">Edit</button>
@@ -286,7 +314,7 @@ export function SettingsPage(): JSX.Element {
               <div className="card-darker rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" checked readOnly className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500" />
+                    <input type="checkbox" defaultChecked className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500" />
                     <h4 className="font-semibold text-white">5 TPs Template</h4>
                   </div>
                   <button onClick={() => handleEditTemplate(5)} className="text-blue-400 hover:text-blue-300 text-sm font-medium">Edit</button>
@@ -303,7 +331,7 @@ export function SettingsPage(): JSX.Element {
               <div className="card-darker rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" checked readOnly className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500" />
+                    <input type="checkbox" defaultChecked className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500" />
                     <h4 className="font-semibold text-white">6 TPs Template</h4>
                   </div>
                   <button onClick={() => handleEditTemplate(6)} className="text-blue-400 hover:text-blue-300 text-sm font-medium">Edit</button>
@@ -389,9 +417,9 @@ export function SettingsPage(): JSX.Element {
                         max="100"
                         onChange={(event) => {
                           const value = event.target.value;
-                          setTpSummaryTouched(true);
                           setTpInputs((current) => current.map((item) => (item.id === input.id ? { ...item, value } : item)));
                         }}
+                        onBlur={handleCommitTPSummary}
                         className="w-full px-4 py-2 bg-black border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none mt-2"
                       />
                     </div>
@@ -525,7 +553,7 @@ export function SettingsPage(): JSX.Element {
             <div>
               <label className="text-sm text-gray-300 mb-2 block">Add Symbol to Block</label>
               <div className="flex gap-2">
-                <input type="text" id="symbolInput" value={symbolInput} onChange={(event) => setSymbolInput(event.target.value.toUpperCase())} onKeyPress={handleSymbolKeyPress} placeholder="XAUUSD" className="flex-1 px-4 py-2 bg-black border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none uppercase" />
+                <input type="text" id="symbolInput" value={symbolInput} onChange={(event) => setSymbolInput(event.target.value)} onKeyPress={handleSymbolKeyPress} placeholder="XAUUSD" className="flex-1 px-4 py-2 bg-black border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none uppercase" />
                 <button onClick={handleAddBlockedSymbol} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium flex items-center gap-2">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />

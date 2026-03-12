@@ -1,4 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
+import { useAppShellStore } from '@/features/auth/auth.store';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -10,5 +11,5 @@ export const queryClient = new QueryClient({
 });
 
 export function bootstrapApp(): void {
-  // Reserved for parity-safe startup wiring.
+  useAppShellStore.getState().initializeAuth();
 }

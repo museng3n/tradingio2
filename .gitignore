@@ -14,3 +14,4 @@ desktop.ini
 __pycache__/
 *.pyc
 temp_extract/frontend/TradingHub-Frontend-Fix.zip
+frontend-app/tsconfig.app.tsbuildinfo

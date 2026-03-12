@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 interface StatusBadgeProps {
   label: string;
   live?: boolean;

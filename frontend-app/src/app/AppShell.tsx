@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { SidebarNav } from '@/components/layout/SidebarNav';
 import { ConnectionStatusPanel } from '@/components/layout/ConnectionStatusPanel';
 import { PageContainer } from '@/components/layout/PageContainer';

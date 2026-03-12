@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { JSX } from 'react';
 
 type PositionsTab = 'open' | 'pending';
 

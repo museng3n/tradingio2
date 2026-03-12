@@ -1,6 +1,6 @@
 import { CANONICAL_PAGE_IDS } from '@/app/canonical-mapping';
 import type { CanonicalPage } from '@/app/routes';
-import type { ReactNode } from 'react';
+import type { JSX, ReactNode } from 'react';
 
 interface PageContainerProps {
   page: CanonicalPage;

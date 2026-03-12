@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  tradinghub-client:
+    build: .
+    container_name: tradinghub-telegram-client
+    ports:
+      - "3737:3737"
+    volumes:
+      - ./src:/app/src
+      - ./frontend:/app/frontend
+      - ./sessions:/app/sessions
+      - ./logs:/app/logs
+    environment:
+      - FLASK_APP=src/main.py
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - PYTHONUNBUFFERED=1
+      - SERVER_API_URL=http://host.docker.internal:3001
+    networks:
+      - tradinghub-network
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+networks:
+  tradinghub-network:
+    driver: bridge

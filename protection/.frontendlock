@@ -1,0 +1,28 @@
+{
+  "version": "1.0.0",
+  "locked": true,
+  "reason": "Frontend connected to backend - Phase 6 complete",
+  "protected_files": {
+    "frontend/TradingHub-Final-Fixed.html": {
+      "sha256": "80f9a9883664bb564512cc3ba1c9477352c29fe24413700af3b1114495e42c88",
+      "locked_at": "2025-12-12T03:50:00Z",
+      "size_bytes": 108629,
+      "description": "Complete TradingHub frontend with backend integration (4 script tags added)"
+    }
+  },
+  "rules": {
+    "modify_frontend": false,
+    "create_alternative_frontend": false,
+    "suggest_frontend_changes": false,
+    "read_for_reference": true
+  },
+  "violation_action": "STOP_IMMEDIATELY",
+  "contact": "Owner must approve any frontend changes",
+  "notes": [
+    "Frontend is complete with backend integration",
+    "Phase 6 completed successfully",
+    "Only 4 script tags added (193 bytes)",
+    "All JS logic in separate files (auth.js, api.js, websocket.js, app.js)",
+    "Backend serves this frontend"
+  ]
+}

@@ -1,0 +1,32 @@
+# Core Framework
+Flask==3.0.0
+Flask-CORS==4.0.0
+
+# Telegram Client
+Telethon==1.33.1
+
+# Encryption
+cryptography==41.0.7
+
+# HTTP Requests
+requests==2.31.0
+
+# Environment Variables
+python-dotenv==1.0.0
+
+# Async Support
+asyncio==3.4.3
+nest-asyncio==1.5.8
+
+# Date/Time
+python-dateutil==2.8.2
+
+# JSON handling
+ujson==5.9.0
+
+# Logging
+colorlog==6.8.0
+
+# Utilities
+qrcode==7.4.2
+Pillow==10.1.0

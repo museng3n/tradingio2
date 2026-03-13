@@ -9,6 +9,29 @@ export async function getSettings(): Promise<SettingsResponse> {
   return apiClient.get<SettingsResponse>('/settings');
 }
 
+export interface BlockedSymbolsSettingsRequest {
+  symbols: string[];
+}
+
+export interface BlockedSymbolsSettingsResponse {
+  data: {
+    symbols: string[];
+  };
+}
+
+export async function getBlockedSymbolsSettings(): Promise<BlockedSymbolsSettingsResponse> {
+  return apiClient.get<BlockedSymbolsSettingsResponse>('/settings/blocked-symbols');
+}
+
+export async function updateBlockedSymbolsSettings(
+  request: BlockedSymbolsSettingsRequest
+): Promise<BlockedSymbolsSettingsResponse> {
+  return apiClient.put<BlockedSymbolsSettingsResponse>(
+    '/settings/blocked-symbols',
+    request
+  );
+}
+
 export type PositionSecuritySecurePositionAfter =
   | 'TP1'
   | 'TP2'

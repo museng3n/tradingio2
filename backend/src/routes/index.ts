@@ -8,6 +8,7 @@ import analyticsRoutes from './analytics.routes';
 import dashboardRoutes from './dashboard.routes';
 import userRoutes from './user.routes';
 import sessionRoutes from './session.routes';
+import settingsRoutes from './settings.routes';
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use('/analytics', analyticsRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/user', userRoutes);
 router.use('/session', sessionRoutes);
+router.use('/settings', settingsRoutes);
 
 export default router;

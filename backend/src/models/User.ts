@@ -7,6 +7,28 @@ export interface ISelectedChannel {
   username?: string;
 }
 
+export interface ITPStrategyTemplateSetting {
+  tpCount: number;
+  percentages: number[];
+  enabled: boolean;
+}
+
+export interface ITPStrategyOpenTPConfigSetting {
+  scenario: 'with_fixed' | 'only_open';
+  action?: 'reminder' | 'autoclose';
+  targetPips?: number;
+  securityPips?: number;
+  closePips?: number;
+}
+
+export interface ITPStrategySettings {
+  mode: 'template' | 'strategy' | 'opentp';
+  templates: ITPStrategyTemplateSetting[];
+  strategyType: 'equal' | 'weighted' | 'custom';
+  customPercentages: number[];
+  openTPConfig: ITPStrategyOpenTPConfigSetting;
+}
+
 export interface IUser extends Document {
   email: string;
   password: string;
@@ -28,6 +50,7 @@ export interface IUser extends Document {
   selectedChannels?: ISelectedChannel[];
   telegramConnected: boolean;
   telegramConnectedAt?: Date;
+  tpStrategySettings?: ITPStrategySettings;
   createdAt: Date;
   updatedAt: Date;
 
@@ -103,6 +126,56 @@ const userSchema = new Schema<IUser>({
   },
   telegramConnectedAt: {
     type: Date
+  },
+  tpStrategySettings: {
+    mode: {
+      type: String,
+      enum: ['template', 'strategy', 'opentp']
+    },
+    templates: [{
+      tpCount: {
+        type: Number,
+        min: 2
+      },
+      percentages: [{
+        type: Number,
+        min: 0
+      }],
+      enabled: {
+        type: Boolean,
+        default: true
+      }
+    }],
+    strategyType: {
+      type: String,
+      enum: ['equal', 'weighted', 'custom']
+    },
+    customPercentages: [{
+      type: Number,
+      min: 0
+    }],
+    openTPConfig: {
+      scenario: {
+        type: String,
+        enum: ['with_fixed', 'only_open']
+      },
+      action: {
+        type: String,
+        enum: ['reminder', 'autoclose']
+      },
+      targetPips: {
+        type: Number,
+        min: 0
+      },
+      securityPips: {
+        type: Number,
+        min: 0
+      },
+      closePips: {
+        type: Number,
+        min: 0
+      }
+    }
   }
 }, {
   timestamps: true

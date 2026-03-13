@@ -46,6 +46,14 @@ export interface IBlockedSymbolsSettings {
   symbols: string[];
 }
 
+export type TelegramRuntimeStatus =
+  | 'UPLOADED_NOT_ACTIVATED'
+  | 'PROVISIONING_RUNTIME'
+  | 'MONITORING_ACTIVE'
+  | 'DEGRADED_RECONNECTING'
+  | 'DISCONNECTED'
+  | 'AUTH_INVALID_OR_SESSION_EXPIRED';
+
 export interface IUser extends Document {
   email: string;
   password: string;
@@ -67,6 +75,10 @@ export interface IUser extends Document {
   selectedChannels?: ISelectedChannel[];
   telegramConnected: boolean;
   telegramConnectedAt?: Date;
+  telegramRuntimeStatus?: TelegramRuntimeStatus;
+  telegramRuntimeStatusUpdatedAt?: Date;
+  telegramSessionUploadedAt?: Date;
+  telegramActivationRequestedAt?: Date | null;
   tpStrategySettings?: ITPStrategySettings;
   riskManagementSettings?: IRiskManagementSettings;
   positionSecuritySettings?: IPositionSecuritySettings;
@@ -146,6 +158,27 @@ const userSchema = new Schema<IUser>({
   },
   telegramConnectedAt: {
     type: Date
+  },
+  telegramRuntimeStatus: {
+    type: String,
+    enum: [
+      'UPLOADED_NOT_ACTIVATED',
+      'PROVISIONING_RUNTIME',
+      'MONITORING_ACTIVE',
+      'DEGRADED_RECONNECTING',
+      'DISCONNECTED',
+      'AUTH_INVALID_OR_SESSION_EXPIRED'
+    ]
+  },
+  telegramRuntimeStatusUpdatedAt: {
+    type: Date
+  },
+  telegramSessionUploadedAt: {
+    type: Date
+  },
+  telegramActivationRequestedAt: {
+    type: Date,
+    default: null
   },
   tpStrategySettings: {
     mode: {

@@ -77,12 +77,18 @@ router.post('/upload', async (req, res: Response) => {
         }
 
         // Update user with Telegram session data
+        const now = new Date();
+
         user.set({
             telegramSession: encrypted_session,
             phoneNumber: phone_number,
             selectedChannels: selected_channels,
             telegramConnected: true,
-            telegramConnectedAt: new Date()
+            telegramConnectedAt: now,
+            telegramRuntimeStatus: 'UPLOADED_NOT_ACTIVATED',
+            telegramRuntimeStatusUpdatedAt: now,
+            telegramSessionUploadedAt: now,
+            telegramActivationRequestedAt: null
         });
 
         await user.save();

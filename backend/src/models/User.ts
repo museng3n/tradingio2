@@ -36,6 +36,12 @@ export interface IRiskManagementSettings {
   autoTrading: boolean;
 }
 
+export interface IPositionSecuritySettings {
+  moveSlToBreakeven: boolean;
+  securePositionAfter: 'TP1' | 'TP2' | 'TP3' | 'CUSTOM_PIPS';
+  customPips: number | null;
+}
+
 export interface IUser extends Document {
   email: string;
   password: string;
@@ -59,6 +65,7 @@ export interface IUser extends Document {
   telegramConnectedAt?: Date;
   tpStrategySettings?: ITPStrategySettings;
   riskManagementSettings?: IRiskManagementSettings;
+  positionSecuritySettings?: IPositionSecuritySettings;
   createdAt: Date;
   updatedAt: Date;
 
@@ -201,6 +208,20 @@ const userSchema = new Schema<IUser>({
     },
     autoTrading: {
       type: Boolean
+    }
+  },
+  positionSecuritySettings: {
+    moveSlToBreakeven: {
+      type: Boolean
+    },
+    securePositionAfter: {
+      type: String,
+      enum: ['TP1', 'TP2', 'TP3', 'CUSTOM_PIPS']
+    },
+    customPips: {
+      type: Number,
+      min: 1,
+      default: null
     }
   }
 }, {

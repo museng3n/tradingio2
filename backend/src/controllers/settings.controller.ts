@@ -1,11 +1,85 @@
 import { Response, NextFunction } from 'express';
 import User from '../models/User';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import positionSecuritySettingsService from '../services/settings/position-security-settings.service';
 import riskManagementSettingsService from '../services/settings/risk-management-settings.service';
 import tpStrategySettingsService from '../services/settings/tp-strategy-settings.service';
 import { AppError } from '../utils/errors';
 
 export class SettingsController {
+  async getPositionSecuritySettings(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        throw new AppError('User ID required', 400);
+      }
+
+      const user = await User.findById(userId).select('positionSecuritySettings');
+
+      if (!user) {
+        throw new AppError('User not found', 404);
+      }
+
+      res.json(
+        positionSecuritySettingsService.normalizeForResponse(
+          user.positionSecuritySettings
+        )
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updatePositionSecuritySettings(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        throw new AppError('User ID required', 400);
+      }
+
+      const normalizedSettings =
+        positionSecuritySettingsService.validateAndNormalizeInput(req.body);
+
+      const user = await User.findByIdAndUpdate(
+        userId,
+        {
+          $set: {
+            positionSecuritySettings:
+              positionSecuritySettingsService.normalizeForPersistence(
+                normalizedSettings
+              ),
+          },
+        },
+        {
+          new: true,
+          runValidators: true,
+        }
+      ).select('positionSecuritySettings');
+
+      if (!user) {
+        throw new AppError('User not found', 404);
+      }
+
+      res.json(
+        positionSecuritySettingsService.normalizeForResponse(
+          user.positionSecuritySettings
+        )
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getRiskManagementSettings(
     req: AuthRequest,
     res: Response,

@@ -7,6 +7,16 @@ const router = Router();
 router.use(authenticate);
 
 router.get(
+  '/position-security',
+  settingsController.getPositionSecuritySettings
+);
+
+router.put(
+  '/position-security',
+  settingsController.updatePositionSecuritySettings
+);
+
+router.get(
   '/risk-management',
   settingsController.getRiskManagementSettings
 );

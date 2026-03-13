@@ -7,6 +7,16 @@ const router = Router();
 router.use(authenticate);
 
 router.get(
+  '/blocked-symbols',
+  settingsController.getBlockedSymbolsSettings
+);
+
+router.put(
+  '/blocked-symbols',
+  settingsController.updateBlockedSymbolsSettings
+);
+
+router.get(
   '/position-security',
   settingsController.getPositionSecuritySettings
 );

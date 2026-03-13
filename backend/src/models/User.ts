@@ -42,6 +42,10 @@ export interface IPositionSecuritySettings {
   customPips: number | null;
 }
 
+export interface IBlockedSymbolsSettings {
+  symbols: string[];
+}
+
 export interface IUser extends Document {
   email: string;
   password: string;
@@ -66,6 +70,7 @@ export interface IUser extends Document {
   tpStrategySettings?: ITPStrategySettings;
   riskManagementSettings?: IRiskManagementSettings;
   positionSecuritySettings?: IPositionSecuritySettings;
+  blockedSymbolsSettings?: IBlockedSymbolsSettings;
   createdAt: Date;
   updatedAt: Date;
 
@@ -223,6 +228,13 @@ const userSchema = new Schema<IUser>({
       min: 1,
       default: null
     }
+  },
+  blockedSymbolsSettings: {
+    symbols: [{
+      type: String,
+      trim: true,
+      uppercase: true
+    }]
   }
 }, {
   timestamps: true

@@ -1,6 +1,10 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import type { JSX } from 'react';
 import {
+  PositionSecuritySection,
+  type PositionSecuritySectionHandle,
+} from '@/features/settings/components/PositionSecuritySection';
+import {
   RiskManagementSection,
   type RiskManagementSectionHandle,
 } from '@/features/settings/components/RiskManagementSection';
@@ -10,21 +14,11 @@ import {
 } from '@/features/settings/components/TPStrategySection';
 
 export function SettingsPage(): JSX.Element {
-  const [moveSlToBreakeven, setMoveSlToBreakeven] = useState(true);
   const [symbolInput, setSymbolInput] = useState('');
   const [blockedSymbols, setBlockedSymbols] = useState<string[]>([]);
-  const [moveSlTransform, setMoveSlTransform] = useState<string | null>(null);
+  const positionSecurityRef = useRef<PositionSecuritySectionHandle>(null);
   const riskManagementRef = useRef<RiskManagementSectionHandle>(null);
   const tpStrategyRef = useRef<TPStrategySectionHandle>(null);
-
-  const toggleSwitchClassName = (active: boolean): string =>
-    active
-      ? 'relative w-12 h-6 rounded-full bg-blue-600 transition-colors'
-      : 'relative w-12 h-6 rounded-full bg-gray-700 transition-colors';
-
-  const circleStyle = (active: boolean): { transform: string } => ({
-    transform: active ? 'translateX(24px)' : 'translateX(0)',
-  });
 
   const handleAddBlockedSymbol = (): void => {
     const symbol = symbolInput.trim().toUpperCase();
@@ -93,60 +87,7 @@ export function SettingsPage(): JSX.Element {
           </div>
         </div>
 
-        <div className="card-dark rounded-lg p-6">
-          <div className="flex items-center gap-2 mb-6">
-            <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-            <h3 className="text-lg font-semibold text-white">Position Security</h3>
-          </div>
-          <p className="text-sm text-gray-400 mb-6">Configure automatic position protection settings</p>
-
-          <div className="space-y-6">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-sm font-medium text-gray-300">Move SL to Breakeven</label>
-                <button
-                  onClick={() => {
-                    if (moveSlToBreakeven) {
-                      setMoveSlToBreakeven(false);
-                      setMoveSlTransform('translateX(0)');
-                    } else {
-                      setMoveSlToBreakeven(true);
-                      setMoveSlTransform('translateX(24px)');
-                    }
-                  }}
-                  className={toggleSwitchClassName(moveSlToBreakeven)}
-                >
-                  <div
-                    className="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
-                    style={moveSlTransform ? { transform: moveSlTransform } : undefined}
-                  ></div>
-                </button>
-              </div>
-              <p className="text-xs text-gray-500">Automatically move stop loss to entry price when target is reached</p>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-gray-300 mb-3 block">Secure Position After</label>
-              <select className="w-full px-4 py-2 bg-black border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none">
-                <option>After TP1 Hit</option>
-                <option>After TP2 Hit</option>
-                <option>After TP3 Hit</option>
-                <option>Custom Pips</option>
-              </select>
-            </div>
-
-            <div id="customPipsSection" className="hidden">
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-sm font-medium text-gray-300">Custom Pips</label>
-                <span className="text-sm font-bold text-white">20</span>
-              </div>
-              <input type="number" defaultValue="20" className="w-full px-4 py-2 bg-black border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none" />
-              <p className="text-xs text-gray-500 mt-2">Move SL to breakeven after X pips in profit</p>
-            </div>
-          </div>
-        </div>
+        <PositionSecuritySection ref={positionSecurityRef} />
 
         <TPStrategySection ref={tpStrategyRef} />
 
@@ -210,6 +151,7 @@ export function SettingsPage(): JSX.Element {
         <button
           onClick={() => {
             void Promise.all([
+              positionSecurityRef.current?.save(),
               riskManagementRef.current?.save(),
               tpStrategyRef.current?.save(),
             ]);

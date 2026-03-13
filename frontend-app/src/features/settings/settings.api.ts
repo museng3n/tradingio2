@@ -9,6 +9,41 @@ export async function getSettings(): Promise<SettingsResponse> {
   return apiClient.get<SettingsResponse>('/settings');
 }
 
+export type PositionSecuritySecurePositionAfter =
+  | 'TP1'
+  | 'TP2'
+  | 'TP3'
+  | 'CUSTOM_PIPS';
+
+export interface PositionSecuritySettingsRequest {
+  moveSlToBreakeven: boolean;
+  securePositionAfter: PositionSecuritySecurePositionAfter;
+  customPips: number | null;
+}
+
+export interface PositionSecuritySettingsResponse {
+  data: {
+    moveSlToBreakeven: boolean;
+    securePositionAfter: PositionSecuritySecurePositionAfter;
+    customPips: number | null;
+  };
+}
+
+export async function getPositionSecuritySettings(): Promise<PositionSecuritySettingsResponse> {
+  return apiClient.get<PositionSecuritySettingsResponse>(
+    '/settings/position-security'
+  );
+}
+
+export async function updatePositionSecuritySettings(
+  request: PositionSecuritySettingsRequest
+): Promise<PositionSecuritySettingsResponse> {
+  return apiClient.put<PositionSecuritySettingsResponse>(
+    '/settings/position-security',
+    request
+  );
+}
+
 export interface RiskManagementSettingsRequest {
   defaultLotSize: number;
   maxRiskPerTradePercent: number;

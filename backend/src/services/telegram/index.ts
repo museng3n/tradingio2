@@ -1,5 +1,9 @@
 export { default as telegramBotService, TelegramBotService } from './bot.service';
 export {
+  default as telegramActivationOrchestrationService,
+  TelegramActivationOrchestrationService,
+} from './activation-orchestration.service';
+export {
   default as uploadedSessionCustodyService,
   UploadedSessionCustodyService,
 } from './uploaded-session-custody.service';

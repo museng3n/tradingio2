@@ -30,6 +30,10 @@ class ApiClient {
     return this.request<T>(path, { method: 'POST', body });
   }
 
+  async put<T>(path: string, body: unknown): Promise<T> {
+    return this.request<T>(path, { method: 'PUT', body });
+  }
+
   private async request<T>(path: string, options: ApiRequestOptions): Promise<T> {
     const token = this.getAccessToken();
     const response = await fetch(`${this.baseUrl}${path}`, {

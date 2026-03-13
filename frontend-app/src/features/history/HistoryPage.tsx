@@ -1,10 +1,45 @@
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { JSX } from 'react';
+import { useAppShellStore } from '@/features/auth/auth.store';
+import { getSecuredSignalsHistory } from '@/features/history/history.api';
 
 type HistoryTab = 'secured' | 'bugs';
 
+const formatHistoryDateTime = (value: string): string =>
+  new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value));
+
+const formatPrice = (value: number): string => {
+  if (!Number.isFinite(value)) {
+    return '-';
+  }
+
+  if (Math.abs(value) >= 1000) {
+    return value.toFixed(2);
+  }
+
+  return value.toFixed(5);
+};
+
+const formatPipsToBreakeven = (value: number | null): string =>
+  value === null ? '-' : String(value);
+
 export function HistoryPage(): JSX.Element {
   const [activeTab, setActiveTab] = useState<HistoryTab>('secured');
+  const user = useAppShellStore((state) => state.user);
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['secured-signals-history', user?.id],
+    queryFn: getSecuredSignalsHistory,
+    enabled: user !== null,
+  });
+
+  const securedSignals = error ? [] : (data?.positions ?? []);
 
   return (
     <>
@@ -93,19 +128,38 @@ export function HistoryPage(): JSX.Element {
                 <th className="pb-3 font-medium">Reason</th>
               </tr>
             </thead>
+            {securedSignals.length > 0 ? (
+              <tbody>
+                {securedSignals.map((position) => (
+                  <tr key={position.id} className="border-b border-gray-800/70 text-sm text-gray-300">
+                    <td className="py-4">{formatHistoryDateTime(position.timeSecured)}</td>
+                    <td className="py-4 font-medium text-white">{position.symbol}</td>
+                    <td className={`py-4 font-medium ${position.direction === 'BUY' ? 'text-green-400' : 'text-red-400'}`}>
+                      {position.direction}
+                    </td>
+                    <td className="py-4">{formatPrice(position.entry)}</td>
+                    <td className="py-4">{formatPrice(position.securedAt)}</td>
+                    <td className="py-4">{formatPipsToBreakeven(position.pipsToBE)}</td>
+                    <td className="py-4">{position.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            ) : null}
           </table>
-          <div className="flex flex-col items-center justify-center py-12">
-            <svg className="w-16 h-16 text-gray-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-              />
-            </svg>
-            <p className="text-gray-500 text-center">No secured signals yet</p>
-            <p className="text-gray-600 text-sm">Positions moved to breakeven will appear here</p>
-          </div>
+          {!isLoading && !error && securedSignals.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <svg className="w-16 h-16 text-gray-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                />
+              </svg>
+              <p className="text-gray-500 text-center">No secured signals yet</p>
+              <p className="text-gray-600 text-sm">Positions moved to breakeven will appear here</p>
+            </div>
+          ) : null}
         </div>
       </div>
 

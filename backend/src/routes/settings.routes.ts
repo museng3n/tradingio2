@@ -7,6 +7,16 @@ const router = Router();
 router.use(authenticate);
 
 router.get(
+  '/telegram-channels',
+  settingsController.getTelegramChannelsSettings
+);
+
+router.put(
+  '/telegram-channels',
+  settingsController.updateTelegramChannelsSettings
+);
+
+router.get(
   '/blocked-symbols',
   settingsController.getBlockedSymbolsSettings
 );

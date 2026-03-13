@@ -9,6 +9,37 @@ export async function getSettings(): Promise<SettingsResponse> {
   return apiClient.get<SettingsResponse>('/settings');
 }
 
+export interface TelegramSelectedChannel {
+  id: string;
+  title: string;
+  username?: string;
+}
+
+export interface TelegramChannelsSettingsRequest {
+  selectedChannels: TelegramSelectedChannel[];
+}
+
+export interface TelegramChannelsSettingsResponse {
+  data: {
+    selectedChannels: TelegramSelectedChannel[];
+  };
+}
+
+export async function getTelegramChannelsSettings(): Promise<TelegramChannelsSettingsResponse> {
+  return apiClient.get<TelegramChannelsSettingsResponse>(
+    '/settings/telegram-channels'
+  );
+}
+
+export async function updateTelegramChannelsSettings(
+  request: TelegramChannelsSettingsRequest
+): Promise<TelegramChannelsSettingsResponse> {
+  return apiClient.put<TelegramChannelsSettingsResponse>(
+    '/settings/telegram-channels',
+    request
+  );
+}
+
 export interface BlockedSymbolsSettingsRequest {
   symbols: string[];
 }

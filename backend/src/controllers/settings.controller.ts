@@ -4,10 +4,80 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import blockedSymbolsSettingsService from '../services/settings/blocked-symbols-settings.service';
 import positionSecuritySettingsService from '../services/settings/position-security-settings.service';
 import riskManagementSettingsService from '../services/settings/risk-management-settings.service';
+import telegramChannelsSettingsService from '../services/settings/telegram-channels-settings.service';
 import tpStrategySettingsService from '../services/settings/tp-strategy-settings.service';
 import { AppError } from '../utils/errors';
 
 export class SettingsController {
+  async getTelegramChannelsSettings(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        throw new AppError('User ID required', 400);
+      }
+
+      const user = await User.findById(userId).select('selectedChannels');
+
+      if (!user) {
+        throw new AppError('User not found', 404);
+      }
+
+      res.json(
+        telegramChannelsSettingsService.normalizeForResponse(user.selectedChannels)
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateTelegramChannelsSettings(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        throw new AppError('User ID required', 400);
+      }
+
+      const normalizedSettings =
+        telegramChannelsSettingsService.validateAndNormalizeInput(req.body);
+
+      const user = await User.findByIdAndUpdate(
+        userId,
+        {
+          $set: {
+            selectedChannels:
+              telegramChannelsSettingsService.normalizeForPersistence(
+                normalizedSettings
+              ),
+          },
+        },
+        {
+          new: true,
+          runValidators: true,
+        }
+      ).select('selectedChannels');
+
+      if (!user) {
+        throw new AppError('User not found', 404);
+      }
+
+      res.json(
+        telegramChannelsSettingsService.normalizeForResponse(user.selectedChannels)
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getBlockedSymbolsSettings(
     req: AuthRequest,
     res: Response,

@@ -6,6 +6,8 @@ const router = Router();
 
 router.use(authenticate);
 
-router.get('/runtime-status', telegramController.getRuntimeStatus);
+router.get('/runtime-status', telegramController.getRuntimeStatus.bind(telegramController));
+router.post('/activate', telegramController.startRuntime.bind(telegramController));
+router.post('/stop', telegramController.stopRuntime.bind(telegramController));
 
 export default router;

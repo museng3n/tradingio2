@@ -5,6 +5,7 @@ import executorService from '../services/trading/executor.service';
 import riskManagerService from '../services/trading/risk-manager.service';
 import tpStrategyService from '../services/trading/tp-strategy.service';
 import { getConnectionService } from '../services/mt5/connection.service';
+import userHistoryService from '../services/history/user-history.service';
 import { AppError } from '../utils/errors';
 
 export class PositionController {
@@ -79,6 +80,27 @@ export class PositionController {
         success: true,
         data: positions
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get secured position history for the authenticated user
+   */
+  async getPositionHistory(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+
+      const history = await userHistoryService.getSecuredSignalsHistory(userId, page, limit);
+      res.json(history);
     } catch (error) {
       next(error);
     }

@@ -21,6 +21,12 @@ router.get(
   positionController.getOpenPositions
 );
 
+// Get secured position history
+router.get(
+  '/history',
+  positionController.getPositionHistory
+);
+
 // Get position statistics
 router.get(
   '/stats',

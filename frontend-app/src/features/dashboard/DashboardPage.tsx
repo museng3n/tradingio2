@@ -20,10 +20,10 @@ export function DashboardPage(): JSX.Element {
   });
 
   const stats = data?.data;
-  const balanceValue = stats ? formatCurrency(stats.account.balance) : '$10,000.00';
-  const equityValue = stats ? formatCurrency(stats.account.equity) : '$10,000.00';
-  const dailyProfitValue = stats ? formatCurrency(stats.performance.todayProfit) : '$0.00';
-  const openPositionsValue = stats ? String(stats.positions.open) : '0';
+  const balanceValue = stats ? formatCurrency(stats.account.balance) : '-';
+  const equityValue = stats ? formatCurrency(stats.account.equity) : '-';
+  const dailyProfitValue = stats ? formatCurrency(stats.performance.todayProfit) : '-';
+  const openPositionsValue = stats ? String(stats.positions.open) : '-';
 
   return (
     <>

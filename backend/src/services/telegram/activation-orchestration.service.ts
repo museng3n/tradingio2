@@ -4,6 +4,10 @@ import uploadedSessionCustodyService, {
   type TelegramUploadedSessionDecryptionResult,
   type UploadedSessionCustodyService,
 } from './uploaded-session-custody.service';
+import telegramRuntimeOwnerService, {
+  type TelegramRuntimeOwnerService,
+  type TelegramRuntimeOwnerStartResult,
+} from './runtime-owner.service';
 
 export type TelegramActivationReadinessCode =
   | 'READY_FOR_RUNTIME_OWNER'
@@ -16,7 +20,9 @@ export type TelegramActivationReadinessCode =
 
 export type TelegramActivationRequestCode =
   | TelegramActivationReadinessCode
-  | 'RUNTIME_OWNER_UNAVAILABLE';
+  | 'STARTED'
+  | 'RUNTIME_START_FAILED'
+  | 'USER_NOT_FOUND';
 
 export interface TelegramActivationUserSnapshot {
   telegramSession?: string;
@@ -25,6 +31,7 @@ export interface TelegramActivationUserSnapshot {
 }
 
 export interface TelegramActivationReadinessContext {
+  userId: string;
   user: TelegramActivationUserSnapshot;
   runtimeDecryptionKey?: string;
 }
@@ -59,9 +66,23 @@ interface UploadedSessionCustodyPort {
   ): TelegramUploadedSessionDecryptionResult;
 }
 
+interface RuntimeOwnerPort {
+  startRuntime(params: {
+    userId: string;
+    runtimeDecryptionKey: string;
+    user?: {
+      id: string;
+      telegramSession?: string;
+      selectedChannels?: ISelectedChannel[] | null;
+      telegramRuntimeStatus?: TelegramRuntimeStatus;
+    };
+  }): Promise<TelegramRuntimeOwnerStartResult>;
+}
+
 export class TelegramActivationOrchestrationService {
   constructor(
-    private readonly custodyService: UploadedSessionCustodyPort = uploadedSessionCustodyService as UploadedSessionCustodyService
+    private readonly custodyService: UploadedSessionCustodyPort = uploadedSessionCustodyService as UploadedSessionCustodyService,
+    private readonly runtimeOwner: RuntimeOwnerPort = telegramRuntimeOwnerService as TelegramRuntimeOwnerService
   ) {}
 
   evaluateActivationReadiness(
@@ -160,9 +181,9 @@ export class TelegramActivationOrchestrationService {
     };
   }
 
-  attemptActivationRequest(
+  async attemptActivationRequest(
     context: TelegramActivationReadinessContext
-  ): TelegramActivationRequestResult {
+  ): Promise<TelegramActivationRequestResult> {
     const readiness = this.evaluateActivationReadiness(context);
 
     if (!readiness.ready) {
@@ -178,17 +199,51 @@ export class TelegramActivationOrchestrationService {
       };
     }
 
+    const startResult = await this.runtimeOwner.startRuntime({
+      userId: context.userId,
+      runtimeDecryptionKey: context.runtimeDecryptionKey ?? '',
+      user: {
+        id: context.userId,
+        telegramSession: context.user.telegramSession,
+        selectedChannels: context.user.selectedChannels,
+        telegramRuntimeStatus: context.user.telegramRuntimeStatus,
+      },
+    });
+
     return {
-      accepted: false,
-      deferred: true,
-      code: 'RUNTIME_OWNER_UNAVAILABLE',
-      message:
-        'Telegram activation is deferred until a backend runtime owner is implemented',
-      effectiveStatus: readiness.effectiveStatus,
+      accepted: startResult.accepted,
+      deferred: false,
+      code: this.mapStartResultCode(startResult),
+      message: startResult.message,
+      effectiveStatus: startResult.status,
       selectedChannelsCount: readiness.selectedChannelsCount,
       custody: readiness.custody,
-      shouldPersistActivationRequestedAt: false,
+      shouldPersistActivationRequestedAt: startResult.accepted,
     };
+  }
+
+  private mapStartResultCode(
+    startResult: TelegramRuntimeOwnerStartResult
+  ): TelegramActivationRequestCode {
+    switch (startResult.code) {
+      case 'STARTED':
+      case 'USER_NOT_FOUND':
+        return startResult.code;
+      case 'RUNTIME_START_FAILED':
+        return 'RUNTIME_START_FAILED';
+      case 'ALREADY_ACTIVE':
+        return 'ALREADY_ACTIVE';
+      case 'MISSING_ENCRYPTED_SESSION':
+        return 'MISSING_ENCRYPTED_SESSION';
+      case 'MISSING_SELECTED_CHANNELS':
+        return 'MISSING_SELECTED_CHANNELS';
+      case 'SESSION_NOT_DECRYPTABLE':
+        return 'SESSION_NOT_DECRYPTABLE';
+      case 'SESSION_REQUIRES_REAUTH':
+        return 'SESSION_REQUIRES_REAUTH';
+      default:
+        return 'RUNTIME_START_FAILED';
+    }
   }
 
   private getEffectiveStatus(

@@ -7,4 +7,8 @@ export {
   default as uploadedSessionCustodyService,
   UploadedSessionCustodyService,
 } from './uploaded-session-custody.service';
+export {
+  default as telegramRuntimeOwnerService,
+  TelegramRuntimeOwnerService,
+} from './runtime-owner.service';
 export { default as webhookService, WebhookService } from './webhook.service';

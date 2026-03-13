@@ -6,6 +6,7 @@ import type {
   TelegramUploadedSessionAvailability,
   TelegramUploadedSessionDecryptionResult,
 } from '../src/services/telegram/uploaded-session-custody.service';
+import type { TelegramRuntimeOwnerStartResult } from '../src/services/telegram/runtime-owner.service';
 
 class UploadedSessionCustodyServiceStub {
   constructor(
@@ -24,6 +25,28 @@ class UploadedSessionCustodyServiceStub {
         sessionString: 'test-session',
       }
     );
+  }
+}
+
+class TelegramRuntimeOwnerStub {
+  constructor(
+    private readonly result: TelegramRuntimeOwnerStartResult = {
+      accepted: true,
+      code: 'STARTED',
+      message: 'Telegram runtime is now owned in-process',
+      status: 'MONITORING_ACTIVE',
+      state: {
+        userId: 'user-1',
+        status: 'MONITORING_ACTIVE',
+        hasLiveHandle: true,
+        selectedChannelsCount: 1,
+        startedAt: new Date('2026-03-13T00:00:00.000Z').toISOString(),
+      },
+    }
+  ) {}
+
+  async startRuntime(): Promise<TelegramRuntimeOwnerStartResult> {
+    return this.result;
   }
 }
 
@@ -46,6 +69,7 @@ describe('TelegramActivationOrchestrationService', () => {
     );
 
     const result = service.evaluateActivationReadiness({
+      userId: 'user-1',
       user: createUser({ telegramSession: undefined }),
     });
 
@@ -71,6 +95,7 @@ describe('TelegramActivationOrchestrationService', () => {
     );
 
     const result = service.evaluateActivationReadiness({
+      userId: 'user-1',
       user: createUser({ selectedChannels: [] }),
     });
 
@@ -103,6 +128,7 @@ describe('TelegramActivationOrchestrationService', () => {
     );
 
     const result = service.evaluateActivationReadiness({
+      userId: 'user-1',
       user: createUser(),
       runtimeDecryptionKey: 'wrong-runtime-key',
     });
@@ -121,43 +147,46 @@ describe('TelegramActivationOrchestrationService', () => {
     });
   });
 
-  it('defers activation when prerequisites are satisfied but no runtime owner exists yet', () => {
+  it('starts activation when prerequisites are satisfied and runtime ownership succeeds', async () => {
     const service = new TelegramActivationOrchestrationService(
       new UploadedSessionCustodyServiceStub({
         hasEncryptedSession: true,
         canDecryptForRuntimeUse: true,
-      })
+      }),
+      new TelegramRuntimeOwnerStub() as never
     );
 
-    const result = service.attemptActivationRequest({
+    const result = await service.attemptActivationRequest({
+      userId: 'user-1',
       user: createUser(),
     });
 
     expect(result).toEqual({
-      accepted: false,
-      deferred: true,
-      code: 'RUNTIME_OWNER_UNAVAILABLE',
-      message:
-        'Telegram activation is deferred until a backend runtime owner is implemented',
-      effectiveStatus: 'UPLOADED_NOT_ACTIVATED',
+      accepted: true,
+      deferred: false,
+      code: 'STARTED',
+      message: 'Telegram runtime is now owned in-process',
+      effectiveStatus: 'MONITORING_ACTIVE',
       selectedChannelsCount: 1,
       custody: {
         hasEncryptedSession: true,
         canDecryptForRuntimeUse: true,
       },
-      shouldPersistActivationRequestedAt: false,
+      shouldPersistActivationRequestedAt: true,
     });
   });
 
-  it('treats provisioning as already in progress', () => {
+  it('treats provisioning as already in progress', async () => {
     const service = new TelegramActivationOrchestrationService(
       new UploadedSessionCustodyServiceStub({
         hasEncryptedSession: true,
         canDecryptForRuntimeUse: true,
-      })
+      }),
+      new TelegramRuntimeOwnerStub() as never
     );
 
-    const result = service.attemptActivationRequest({
+    const result = await service.attemptActivationRequest({
+      userId: 'user-1',
       user: createUser({ telegramRuntimeStatus: 'PROVISIONING_RUNTIME' }),
     });
 
@@ -176,15 +205,17 @@ describe('TelegramActivationOrchestrationService', () => {
     });
   });
 
-  it('treats active runtime states as already active', () => {
+  it('treats active runtime states as already active', async () => {
     const service = new TelegramActivationOrchestrationService(
       new UploadedSessionCustodyServiceStub({
         hasEncryptedSession: true,
         canDecryptForRuntimeUse: true,
-      })
+      }),
+      new TelegramRuntimeOwnerStub() as never
     );
 
-    const result = service.attemptActivationRequest({
+    const result = await service.attemptActivationRequest({
+      userId: 'user-1',
       user: createUser({ telegramRuntimeStatus: 'MONITORING_ACTIVE' }),
     });
 
@@ -194,6 +225,41 @@ describe('TelegramActivationOrchestrationService', () => {
       code: 'ALREADY_ACTIVE',
       message: 'Telegram runtime is already active or reconnecting',
       effectiveStatus: 'MONITORING_ACTIVE',
+      selectedChannelsCount: 1,
+      custody: {
+        hasEncryptedSession: true,
+        canDecryptForRuntimeUse: true,
+      },
+      shouldPersistActivationRequestedAt: false,
+    });
+  });
+
+  it('surfaces truthful runtime-owner failures after readiness passes', async () => {
+    const service = new TelegramActivationOrchestrationService(
+      new UploadedSessionCustodyServiceStub({
+        hasEncryptedSession: true,
+        canDecryptForRuntimeUse: true,
+      }),
+      new TelegramRuntimeOwnerStub({
+        accepted: false,
+        code: 'RUNTIME_START_FAILED',
+        message: 'Telegram runtime adapter is not implemented yet',
+        status: 'DISCONNECTED',
+        state: null,
+      }) as never
+    );
+
+    const result = await service.attemptActivationRequest({
+      userId: 'user-1',
+      user: createUser(),
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      deferred: false,
+      code: 'RUNTIME_START_FAILED',
+      message: 'Telegram runtime adapter is not implemented yet',
+      effectiveStatus: 'DISCONNECTED',
       selectedChannelsCount: 1,
       custody: {
         hasEncryptedSession: true,

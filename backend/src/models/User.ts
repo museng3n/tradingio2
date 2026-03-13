@@ -29,6 +29,13 @@ export interface ITPStrategySettings {
   openTPConfig: ITPStrategyOpenTPConfigSetting;
 }
 
+export interface IRiskManagementSettings {
+  defaultLotSize: number;
+  maxRiskPerTradePercent: number;
+  maxOpenPositions: number;
+  autoTrading: boolean;
+}
+
 export interface IUser extends Document {
   email: string;
   password: string;
@@ -51,6 +58,7 @@ export interface IUser extends Document {
   telegramConnected: boolean;
   telegramConnectedAt?: Date;
   tpStrategySettings?: ITPStrategySettings;
+  riskManagementSettings?: IRiskManagementSettings;
   createdAt: Date;
   updatedAt: Date;
 
@@ -175,6 +183,24 @@ const userSchema = new Schema<IUser>({
         type: Number,
         min: 0
       }
+    }
+  },
+  riskManagementSettings: {
+    defaultLotSize: {
+      type: Number,
+      min: 0.01
+    },
+    maxRiskPerTradePercent: {
+      type: Number,
+      min: 0.5,
+      max: 10
+    },
+    maxOpenPositions: {
+      type: Number,
+      min: 1
+    },
+    autoTrading: {
+      type: Boolean
     }
   }
 }, {

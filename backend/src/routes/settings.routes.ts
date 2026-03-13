@@ -7,6 +7,16 @@ const router = Router();
 router.use(authenticate);
 
 router.get(
+  '/risk-management',
+  settingsController.getRiskManagementSettings
+);
+
+router.put(
+  '/risk-management',
+  settingsController.updateRiskManagementSettings
+);
+
+router.get(
   '/tp-strategy',
   settingsController.getTPStrategySettings
 );

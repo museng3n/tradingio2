@@ -9,6 +9,35 @@ export async function getSettings(): Promise<SettingsResponse> {
   return apiClient.get<SettingsResponse>('/settings');
 }
 
+export interface RiskManagementSettingsRequest {
+  defaultLotSize: number;
+  maxRiskPerTradePercent: number;
+  maxOpenPositions: number;
+  autoTrading: boolean;
+}
+
+export interface RiskManagementSettingsResponse {
+  data: {
+    defaultLotSize: number;
+    maxRiskPerTradePercent: number;
+    maxOpenPositions: number;
+    autoTrading: boolean;
+  };
+}
+
+export async function getRiskManagementSettings(): Promise<RiskManagementSettingsResponse> {
+  return apiClient.get<RiskManagementSettingsResponse>('/settings/risk-management');
+}
+
+export async function updateRiskManagementSettings(
+  request: RiskManagementSettingsRequest
+): Promise<RiskManagementSettingsResponse> {
+  return apiClient.put<RiskManagementSettingsResponse>(
+    '/settings/risk-management',
+    request
+  );
+}
+
 export type TPStrategyMode = 'template' | 'strategy' | 'opentp';
 export type TPStrategyType = 'equal' | 'weighted' | 'custom';
 export type OpenTPScenario = 'with_fixed' | 'only_open';

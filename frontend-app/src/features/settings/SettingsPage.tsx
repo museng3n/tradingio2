@@ -1,19 +1,20 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import type { JSX } from 'react';
 import {
+  RiskManagementSection,
+  type RiskManagementSectionHandle,
+} from '@/features/settings/components/RiskManagementSection';
+import {
   TPStrategySection,
   type TPStrategySectionHandle,
 } from '@/features/settings/components/TPStrategySection';
 
 export function SettingsPage(): JSX.Element {
-  const [maxRisk, setMaxRisk] = useState('2');
-  const [defaultLotSize, setDefaultLotSize] = useState('0.01');
-  const [maxOpenPositions, setMaxOpenPositions] = useState('5');
-  const [autoTrading, setAutoTrading] = useState(false);
   const [moveSlToBreakeven, setMoveSlToBreakeven] = useState(true);
   const [symbolInput, setSymbolInput] = useState('');
   const [blockedSymbols, setBlockedSymbols] = useState<string[]>([]);
   const [moveSlTransform, setMoveSlTransform] = useState<string | null>(null);
+  const riskManagementRef = useRef<RiskManagementSectionHandle>(null);
   const tpStrategyRef = useRef<TPStrategySectionHandle>(null);
 
   const toggleSwitchClassName = (active: boolean): string =>
@@ -57,54 +58,7 @@ export function SettingsPage(): JSX.Element {
       </div>
 
       <div className="grid grid-cols-2 gap-6">
-        <div className="card-dark rounded-lg p-6">
-          <div className="flex items-center gap-2 mb-6">
-            <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-            <h3 className="text-lg font-semibold text-white">Risk Management</h3>
-          </div>
-          <p className="text-sm text-gray-400 mb-6">Configure your trading risk parameters</p>
-
-          <div className="space-y-6">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-sm font-medium text-gray-300">Default Lot Size</label>
-                <span className="text-sm font-bold text-white">0.01</span>
-              </div>
-              <input type="number" value={defaultLotSize} step="0.01" onChange={(event) => setDefaultLotSize(event.target.value)} className="w-full px-4 py-2 bg-black border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none" />
-              <p className="text-xs text-gray-500 mt-2">Standard lot size for new positions</p>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-sm font-medium text-gray-300">Max Risk per Trade (%)</label>
-                <span className="text-sm font-bold text-blue-400">{maxRisk}%</span>
-              </div>
-              <input type="range" min="0.5" max="10" step="0.5" value={maxRisk} onChange={(event) => setMaxRisk(event.target.value)} className="slider w-full" />
-              <p className="text-xs text-gray-500 mt-2">Maximum risk percentage per trade</p>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-sm font-medium text-gray-300">Max Open Positions</label>
-                <span className="text-sm font-bold text-white">5</span>
-              </div>
-              <input type="number" value={maxOpenPositions} onChange={(event) => setMaxOpenPositions(event.target.value)} className="w-full px-4 py-2 bg-black border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none" />
-              <p className="text-xs text-gray-500 mt-2">Maximum simultaneous open positions</p>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-sm font-medium text-gray-300">Auto Trading</label>
-                <button onClick={() => setAutoTrading((current) => !current)} className={toggleSwitchClassName(autoTrading)}>
-                  <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform" style={circleStyle(autoTrading)}></div>
-                </button>
-              </div>
-              <p className="text-xs text-gray-500">Automatically execute signals</p>
-            </div>
-          </div>
-        </div>
+        <RiskManagementSection ref={riskManagementRef} />
 
         <div className="card-dark rounded-lg p-6">
           <div className="flex items-center justify-between mb-6">
@@ -255,7 +209,10 @@ export function SettingsPage(): JSX.Element {
       <div className="mt-6 flex justify-end">
         <button
           onClick={() => {
-            void tpStrategyRef.current?.save();
+            void Promise.all([
+              riskManagementRef.current?.save(),
+              tpStrategyRef.current?.save(),
+            ]);
           }}
           className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center gap-2"
         >

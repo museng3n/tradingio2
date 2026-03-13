@@ -11,4 +11,8 @@ export {
   default as telegramRuntimeOwnerService,
   TelegramRuntimeOwnerService,
 } from './runtime-owner.service';
+export {
+  default as pythonTelegramRuntimeAdapter,
+  PythonTelegramRuntimeAdapter,
+} from './python-runtime.adapter';
 export { default as webhookService, WebhookService } from './webhook.service';

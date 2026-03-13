@@ -6,6 +6,10 @@ import uploadedSessionCustodyService, {
   type TelegramUploadedSessionDecryptionResult,
   type UploadedSessionCustodyService,
 } from './uploaded-session-custody.service';
+import logger from '../../utils/logger';
+import pythonTelegramRuntimeAdapter, {
+  PythonTelegramRuntimeAdapter,
+} from './python-runtime.adapter';
 
 export interface TelegramRuntimeOwnerUserRecord {
   id: string;
@@ -16,6 +20,7 @@ export interface TelegramRuntimeOwnerUserRecord {
 
 export interface TelegramRuntimeHandle {
   stop(): Promise<void>;
+  onUnexpectedExit?(handler: () => void): void;
 }
 
 export type TelegramRuntimeAdapterStartResult =
@@ -140,16 +145,6 @@ class MongoRuntimeUserStore implements RuntimeUserStore {
   }
 }
 
-class UnavailableTelegramRuntimeAdapter implements TelegramRuntimeAdapter {
-  async start(): Promise<TelegramRuntimeAdapterStartResult> {
-    return {
-      ok: false,
-      code: 'UNAVAILABLE',
-      message: 'Telegram runtime adapter is not implemented yet',
-    };
-  }
-}
-
 interface RuntimeRegistryEntry {
   handle: TelegramRuntimeHandle;
   startedAt: Date;
@@ -162,7 +157,7 @@ export class TelegramRuntimeOwnerService {
   constructor(
     private readonly userStore: RuntimeUserStore = new MongoRuntimeUserStore(),
     private readonly custodyService: UploadedSessionCustodyPort = uploadedSessionCustodyService as UploadedSessionCustodyService,
-    private readonly runtimeAdapter: TelegramRuntimeAdapter = new UnavailableTelegramRuntimeAdapter()
+    private readonly runtimeAdapter: TelegramRuntimeAdapter = pythonTelegramRuntimeAdapter as PythonTelegramRuntimeAdapter
   ) {}
 
   async startRuntime(params: {
@@ -267,6 +262,9 @@ export class TelegramRuntimeOwnerService {
     };
 
     this.registry.set(user.id, runtimeEntry);
+    adapterResult.handle.onUnexpectedExit?.(() => {
+      void this.handleUnexpectedRuntimeExit(user.id, runtimeEntry);
+    });
     await this.userStore.updateRuntimeStatus(user.id, 'MONITORING_ACTIVE');
 
     return {
@@ -344,6 +342,28 @@ export class TelegramRuntimeOwnerService {
       selectedChannelsCount: runtime.selectedChannelsCount,
       startedAt: runtime.startedAt.toISOString(),
     };
+  }
+
+  private async handleUnexpectedRuntimeExit(
+    userId: string,
+    runtimeEntry: RuntimeRegistryEntry
+  ): Promise<void> {
+    const currentRuntime = this.registry.get(userId);
+    if (currentRuntime !== runtimeEntry) {
+      return;
+    }
+
+    this.registry.delete(userId);
+
+    try {
+      await this.userStore.updateRuntimeStatus(userId, 'DISCONNECTED');
+    } catch (error) {
+      logger.error(
+        `Failed to persist DISCONNECTED after unexpected Telegram runtime exit for user ${userId}: ${
+          (error as Error).message
+        }`
+      );
+    }
   }
 }
 

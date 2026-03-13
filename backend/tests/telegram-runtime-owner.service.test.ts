@@ -3,6 +3,7 @@ import {
   TelegramRuntimeOwnerService,
   type TelegramRuntimeAdapter,
   type TelegramRuntimeAdapterStartResult,
+  type TelegramRuntimeHandle,
   type TelegramRuntimeOwnerUserRecord,
 } from '../src/services/telegram/runtime-owner.service';
 import uploadedSessionCustodyService from '../src/services/telegram/uploaded-session-custody.service';
@@ -49,17 +50,35 @@ class RuntimeUserStoreStub {
   }
 }
 
+class RuntimeHandleStub implements TelegramRuntimeHandle {
+  private unexpectedExitHandler: (() => void) | null = null;
+
+  constructor(
+    private readonly onStop: () => Promise<void> = async () => undefined
+  ) {}
+
+  onUnexpectedExit(handler: () => void): void {
+    this.unexpectedExitHandler = handler;
+  }
+
+  async stop(): Promise<void> {
+    await this.onStop();
+  }
+
+  triggerUnexpectedExit(): void {
+    this.unexpectedExitHandler?.();
+  }
+}
+
 class RuntimeAdapterStub implements TelegramRuntimeAdapter {
   public stopCalls = 0;
 
   constructor(
     private readonly result: TelegramRuntimeAdapterStartResult = {
       ok: true,
-      handle: {
-        stop: async () => {
+      handle: new RuntimeHandleStub(async () => {
           this.stopCalls += 1;
-        },
-      },
+      }),
     }
   ) {}
 
@@ -204,18 +223,51 @@ describe('TelegramRuntimeOwnerService', () => {
     ]);
   });
 
+  it('clears ownership and persists disconnected when a live runtime exits unexpectedly', async () => {
+    const userStore = new RuntimeUserStoreStub(
+      new Map([['user-1', createUser()]])
+    );
+    const handle = new RuntimeHandleStub();
+    const adapter = new RuntimeAdapterStub({
+      ok: true,
+      handle,
+    });
+    const service = new TelegramRuntimeOwnerService(
+      userStore as never,
+      uploadedSessionCustodyService,
+      adapter
+    );
+
+    await service.startRuntime({
+      userId: 'user-1',
+      runtimeDecryptionKey: 'runtime-api-key',
+    });
+
+    handle.triggerUnexpectedExit();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const inspection = await service.inspectRuntime('user-1');
+    expect(inspection).toEqual({
+      found: false,
+      state: null,
+    });
+    expect(userStore.updates).toEqual([
+      'PROVISIONING_RUNTIME',
+      'MONITORING_ACTIVE',
+      'DISCONNECTED',
+    ]);
+  });
+
   it('keeps runtime ownership truthful when handle stop fails', async () => {
     const userStore = new RuntimeUserStoreStub(
       new Map([[ 'user-1', createUser() ]])
     );
     const adapter = new RuntimeAdapterStub({
       ok: true,
-      handle: {
-        stop: async () => {
+      handle: new RuntimeHandleStub(async () => {
           adapter.stopCalls += 1;
           throw new Error('stop failed');
-        },
-      },
+      }),
     });
     const service = new TelegramRuntimeOwnerService(
       userStore as never,

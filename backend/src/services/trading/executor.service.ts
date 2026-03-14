@@ -88,7 +88,8 @@ export class ExecutorService {
 
       // Calculate TP distribution
       const strategy: TPStrategy = tpStrategy || { mode: 'template' };
-      const tpDistribution = tpStrategyService.calculateTPDistribution(
+      const strategySource = tpStrategy ? 'request' : 'executor_default';
+      const { distribution: tpDistribution, metadata: tpDistributionMetadata } = tpStrategyService.calculateTPDistributionWithMetadata(
         signal.tps,
         lotSize,
         strategy
@@ -112,6 +113,24 @@ export class ExecutorService {
           hit: false
         })),
         sl: signal.sl,
+        tpPlanning: {
+          originalPlan: {
+            plannedTps: tpDistribution.map(tp => ({
+              level: tp.level,
+              targetPrice: typeof tp.price === 'number' ? tp.price : null,
+              percentage: tp.percentage,
+              isExactTarget: typeof tp.price === 'number'
+            })),
+            provenance: {
+              strategySource,
+              mode: tpDistributionMetadata.mode,
+              strategyType: tpDistributionMetadata.strategyType,
+              usedFallback: tpDistributionMetadata.usedFallback,
+              normalizedPercentages: tpDistributionMetadata.normalizedPercentages
+            }
+          },
+          wasModifiedAfterOpen: false
+        },
         securityApplied: false,
         status: 'OPEN',
         openedAt: new Date()
@@ -224,6 +243,12 @@ export class ExecutorService {
           hit: position.tps[index]?.hit || false,
           hitAt: position.tps[index]?.hitAt
         }));
+      }
+
+      if (!position.tpPlanning) {
+        position.tpPlanning = { wasModifiedAfterOpen: true };
+      } else {
+        position.tpPlanning.wasModifiedAfterOpen = true;
       }
 
       await position.save();

@@ -8,6 +8,26 @@ interface ITP {
   hitAt?: Date;
 }
 
+interface IOriginalPlannedTP {
+  level: number;
+  targetPrice: number | null;
+  percentage: number;
+  isExactTarget: boolean;
+}
+
+interface ITPPlanningProvenance {
+  strategySource: 'request' | 'executor_default';
+  mode: 'template' | 'strategy' | 'opentp';
+  strategyType?: 'equal' | 'weighted' | 'custom' | null;
+  usedFallback: boolean;
+  normalizedPercentages: boolean;
+}
+
+interface ITPPlanningSnapshot {
+  plannedTps: IOriginalPlannedTP[];
+  provenance: ITPPlanningProvenance;
+}
+
 export interface IPosition extends Document {
   userId: mongoose.Types.ObjectId;
   signalId: mongoose.Types.ObjectId;
@@ -22,6 +42,10 @@ export interface IPosition extends Document {
   profitLossPercentage: number;
   tps: ITP[];
   sl: number;
+  tpPlanning?: {
+    originalPlan?: ITPPlanningSnapshot;
+    wasModifiedAfterOpen: boolean;
+  };
   slSecured: boolean;
   slSecuredAt?: Date;
   securityApplied: boolean;
@@ -32,6 +56,68 @@ export interface IPosition extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
+
+const originalPlannedTpSchema = new Schema<IOriginalPlannedTP>({
+  level: {
+    type: Number,
+    required: true
+  },
+  targetPrice: {
+    type: Number,
+    default: null
+  },
+  percentage: {
+    type: Number,
+    required: true
+  },
+  isExactTarget: {
+    type: Boolean,
+    required: true
+  }
+}, {
+  _id: false
+});
+
+const tpPlanningProvenanceSchema = new Schema<ITPPlanningProvenance>({
+  strategySource: {
+    type: String,
+    enum: ['request', 'executor_default'],
+    required: true
+  },
+  mode: {
+    type: String,
+    enum: ['template', 'strategy', 'opentp'],
+    required: true
+  },
+  strategyType: {
+    type: String,
+    enum: ['equal', 'weighted', 'custom'],
+    default: null
+  },
+  usedFallback: {
+    type: Boolean,
+    required: true
+  },
+  normalizedPercentages: {
+    type: Boolean,
+    required: true
+  }
+}, {
+  _id: false
+});
+
+const tpPlanningSnapshotSchema = new Schema<ITPPlanningSnapshot>({
+  plannedTps: {
+    type: [originalPlannedTpSchema],
+    default: []
+  },
+  provenance: {
+    type: tpPlanningProvenanceSchema,
+    required: true
+  }
+}, {
+  _id: false
+});
 
 const positionSchema = new Schema<IPosition>({
   userId: {
@@ -94,6 +180,17 @@ const positionSchema = new Schema<IPosition>({
   sl: {
     type: Number,
     required: true
+  },
+  tpPlanning: {
+    originalPlan: {
+      type: tpPlanningSnapshotSchema,
+      immutable: true,
+      default: undefined
+    },
+    wasModifiedAfterOpen: {
+      type: Boolean,
+      default: false
+    }
   },
   slSecured: {
     type: Boolean,

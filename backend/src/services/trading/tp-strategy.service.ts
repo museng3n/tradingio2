@@ -37,6 +37,18 @@ export interface CalculatedTP {
   lotSize: number;
 }
 
+export interface TPDistributionMetadata {
+  mode: StrategyMode;
+  strategyType: StrategyType | null;
+  usedFallback: boolean;
+  normalizedPercentages: boolean;
+}
+
+export interface TPDistributionResult {
+  distribution: CalculatedTP[];
+  metadata: TPDistributionMetadata;
+}
+
 // Default templates based on TP count
 const DEFAULT_TEMPLATES: TPTemplate[] = [
   { tpCount: 2, percentages: [50, 50], enabled: true },
@@ -64,36 +76,42 @@ export class TPStrategyService {
     totalLotSize: number,
     strategy: TPStrategy
   ): CalculatedTP[] {
+    return this.calculateTPDistributionWithMetadata(tpPrices, totalLotSize, strategy).distribution;
+  }
+
+  calculateTPDistributionWithMetadata(
+    tpPrices: (number | string)[],
+    totalLotSize: number,
+    strategy: TPStrategy
+  ): TPDistributionResult {
     const tpCount = tpPrices.length;
+    const effectiveMode = strategy.mode;
+    const effectiveStrategyType = effectiveMode === 'strategy'
+      ? (strategy.strategyType || 'equal')
+      : null;
 
     if (tpCount === 0) {
-      return [];
+      return {
+        distribution: [],
+        metadata: {
+          mode: effectiveMode,
+          strategyType: effectiveStrategyType,
+          usedFallback: false,
+          normalizedPercentages: false
+        }
+      };
     }
 
-    let percentages: number[];
-
-    switch (strategy.mode) {
-      case 'template':
-        percentages = this.getTemplatePercentages(tpCount, strategy.templates);
-        break;
-
-      case 'strategy':
-        percentages = this.getStrategyPercentages(tpCount, strategy.strategyType || 'equal', strategy.customPercentages);
-        break;
-
-      case 'opentp':
-        percentages = this.getOpenTPPercentages(tpPrices, strategy.openTPConfig);
-        break;
-
-      default:
-        percentages = this.getEqualPercentages(tpCount);
-    }
+    const resolved = this.resolvePercentages(tpPrices, strategy);
+    let percentages = resolved.percentages;
+    let normalizedPercentages = false;
 
     // Ensure percentages sum to 100
     const total = percentages.reduce((sum, p) => sum + p, 0);
     if (Math.abs(total - 100) > 0.01) {
       logger.warn(`TP percentages don't sum to 100 (${total}), normalizing`);
       percentages = percentages.map(p => (p / total) * 100);
+      normalizedPercentages = true;
     }
 
     // Calculate lot sizes
@@ -112,23 +130,52 @@ export class TPStrategyService {
     // Adjust for rounding errors in lot sizes
     this.adjustLotSizes(result, totalLotSize);
 
-    return result;
+    return {
+      distribution: result,
+      metadata: {
+        mode: effectiveMode,
+        strategyType: effectiveStrategyType,
+        usedFallback: resolved.usedFallback,
+        normalizedPercentages
+      }
+    };
+  }
+
+  private resolvePercentages(
+    tpPrices: (number | string)[],
+    strategy: TPStrategy
+  ): { percentages: number[]; usedFallback: boolean } {
+    const tpCount = tpPrices.length;
+
+    switch (strategy.mode) {
+      case 'template':
+        return this.getTemplatePercentages(tpCount, strategy.templates);
+
+      case 'strategy':
+        return this.getStrategyPercentages(tpCount, strategy.strategyType || 'equal', strategy.customPercentages);
+
+      case 'opentp':
+        return this.getOpenTPPercentages(tpPrices, strategy.openTPConfig);
+
+      default:
+        return { percentages: this.getEqualPercentages(tpCount), usedFallback: true };
+    }
   }
 
   /**
    * Get percentages from template based on TP count
    */
-  private getTemplatePercentages(tpCount: number, templates?: TPTemplate[]): number[] {
+  private getTemplatePercentages(tpCount: number, templates?: TPTemplate[]): { percentages: number[]; usedFallback: boolean } {
     const effectiveTemplates = templates || DEFAULT_TEMPLATES;
 
     const template = effectiveTemplates.find(t => t.tpCount === tpCount && t.enabled);
 
     if (template) {
-      return [...template.percentages];
+      return { percentages: [...template.percentages], usedFallback: false };
     }
 
     // Fallback to equal distribution
-    return this.getEqualPercentages(tpCount);
+    return { percentages: this.getEqualPercentages(tpCount), usedFallback: true };
   }
 
   /**
@@ -138,42 +185,51 @@ export class TPStrategyService {
     tpCount: number,
     strategyType: StrategyType,
     customPercentages?: number[]
-  ): number[] {
+  ): { percentages: number[]; usedFallback: boolean } {
     switch (strategyType) {
       case 'equal':
-        return this.getEqualPercentages(tpCount);
+        return { percentages: this.getEqualPercentages(tpCount), usedFallback: false };
 
       case 'weighted':
-        return WEIGHTED_PERCENTAGES[tpCount] || this.getEqualPercentages(tpCount);
+        if (WEIGHTED_PERCENTAGES[tpCount]) {
+          return { percentages: WEIGHTED_PERCENTAGES[tpCount], usedFallback: false };
+        }
+        return { percentages: this.getEqualPercentages(tpCount), usedFallback: true };
 
       case 'custom':
         if (customPercentages && customPercentages.length >= tpCount) {
-          return customPercentages.slice(0, tpCount);
+          return { percentages: customPercentages.slice(0, tpCount), usedFallback: false };
         }
-        return this.getEqualPercentages(tpCount);
+        return { percentages: this.getEqualPercentages(tpCount), usedFallback: true };
 
       default:
-        return this.getEqualPercentages(tpCount);
+        return { percentages: this.getEqualPercentages(tpCount), usedFallback: true };
     }
   }
 
   /**
    * Get percentages for signals with OPEN TP
    */
-  private getOpenTPPercentages(tpPrices: (number | string)[], config?: OpenTPConfig): number[] {
+  private getOpenTPPercentages(
+    tpPrices: (number | string)[],
+    config?: OpenTPConfig
+  ): { percentages: number[]; usedFallback: boolean } {
     const fixedTPs = tpPrices.filter(p => typeof p === 'number');
     const hasOpenTP = tpPrices.some(p => p === 'OPEN');
 
     if (!hasOpenTP) {
       // No open TP, use equal distribution
-      return this.getEqualPercentages(tpPrices.length);
+      return { percentages: this.getEqualPercentages(tpPrices.length), usedFallback: true };
     }
 
     const scenario = config?.scenario || 'with_fixed';
 
     if (scenario === 'only_open' || fixedTPs.length === 0) {
       // All position for open TP
-      return tpPrices.map((_, i) => i === tpPrices.length - 1 ? 100 : 0);
+      return {
+        percentages: tpPrices.map((_, i) => i === tpPrices.length - 1 ? 100 : 0),
+        usedFallback: false
+      };
     }
 
     // with_fixed: distribute among fixed TPs, leave portion for OPEN
@@ -181,12 +237,15 @@ export class TPStrategyService {
     const openTPPercentage = 20;  // Reserve 20% for OPEN TP
     const fixedPercentage = (100 - openTPPercentage) / fixedCount;
 
-    return tpPrices.map((p) => {
-      if (p === 'OPEN') {
-        return openTPPercentage;
-      }
-      return fixedPercentage;
-    });
+    return {
+      percentages: tpPrices.map((p) => {
+        if (p === 'OPEN') {
+          return openTPPercentage;
+        }
+        return fixedPercentage;
+      }),
+      usedFallback: false
+    };
   }
 
   /**

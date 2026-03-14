@@ -91,7 +91,7 @@ export function DashboardPage(): JSX.Element {
             </svg>
           </div>
           <div id="open-pl-value" className="text-2xl font-bold text-white">{openProfitLossValue}</div>
-          <div className="text-gray-400 text-sm mt-1">+0.00%</div>
+          <div className="text-gray-400 text-sm mt-1">-</div>
         </div>
 
         <div className="card-dark rounded-lg p-5">

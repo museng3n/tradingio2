@@ -11,6 +11,15 @@ const formatCurrency = (value: number): string =>
     maximumFractionDigits: 2,
   }).format(value);
 
+const formatMarginLevel = (value: number): string =>
+  `${value.toFixed(1)}%`;
+
+const getCurrencyValue = (value: number | undefined): string =>
+  typeof value === 'number' && Number.isFinite(value) ? formatCurrency(value) : '-';
+
+const getMarginLevelValue = (value: number | undefined): string =>
+  typeof value === 'number' && Number.isFinite(value) ? formatMarginLevel(value) : '-';
+
 export function DashboardPage(): JSX.Element {
   const user = useAppShellStore((state) => state.user);
   const { data } = useQuery({
@@ -24,6 +33,10 @@ export function DashboardPage(): JSX.Element {
   const equityValue = stats ? formatCurrency(stats.account.equity) : '-';
   const dailyProfitValue = stats ? formatCurrency(stats.performance.todayProfit) : '-';
   const openPositionsValue = stats ? String(stats.positions.open) : '-';
+  const openProfitLossValue = getCurrencyValue(stats?.performance.openProfitLoss);
+  const weekProfitLossValue = getCurrencyValue(stats?.performance.weekProfitLoss);
+  const monthProfitLossValue = getCurrencyValue(stats?.performance.monthProfitLoss);
+  const marginLevelValue = getMarginLevelValue(stats?.account.marginLevel);
 
   return (
     <>
@@ -77,7 +90,7 @@ export function DashboardPage(): JSX.Element {
               />
             </svg>
           </div>
-          <div id="open-pl-value" className="text-2xl font-bold text-white">$0.00</div>
+          <div id="open-pl-value" className="text-2xl font-bold text-white">{openProfitLossValue}</div>
           <div className="text-gray-400 text-sm mt-1">+0.00%</div>
         </div>
 
@@ -116,7 +129,7 @@ export function DashboardPage(): JSX.Element {
               />
             </svg>
           </div>
-          <div id="weekly-pl-value" className="text-2xl font-bold text-white">$0.00</div>
+          <div id="weekly-pl-value" className="text-2xl font-bold text-white">{weekProfitLossValue}</div>
         </div>
 
         <div className="card-dark rounded-lg p-5">
@@ -126,7 +139,7 @@ export function DashboardPage(): JSX.Element {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <div id="monthly-pl-value" className="text-2xl font-bold text-white">$0.00</div>
+          <div id="monthly-pl-value" className="text-2xl font-bold text-white">{monthProfitLossValue}</div>
         </div>
 
         <div className="card-dark rounded-lg p-5">
@@ -136,7 +149,7 @@ export function DashboardPage(): JSX.Element {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <div id="margin-level-value" className="text-2xl font-bold text-white">0.0%</div>
+          <div id="margin-level-value" className="text-2xl font-bold text-white">{marginLevelValue}</div>
         </div>
       </div>
 

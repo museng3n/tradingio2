@@ -13,6 +13,9 @@ export interface DashboardStats {
   performance: {
     totalProfit: number;
     todayProfit: number;
+    openProfitLoss: number;
+    weekProfitLoss: number;
+    monthProfitLoss: number;
     winRate: number;
     wonTrades: number;
     lostTrades: number;
@@ -22,6 +25,7 @@ export interface DashboardStats {
     equity: number;
     margin: number;
     freeMargin: number;
+    marginLevel: number;
   };
 }
 

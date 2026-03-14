@@ -1,5 +1,6 @@
 import Position from '../../models/Position';
 import Signal from '../../models/Signal';
+import tpStrategyService from '../trading/tp-strategy.service';
 import logger from '../../utils/logger';
 
 export interface DashboardSummary {
@@ -16,6 +17,9 @@ export interface DashboardSummary {
   largestLoss: number;
   currentStreak: number;
   bestStreak: number;
+  avgRiskReward: number | null;
+  avgRiskRewardEligibleRowCount: number;
+  avgRiskRewardExcludedRowCount: number;
 }
 
 export interface TPStatistics {
@@ -106,6 +110,7 @@ export class StatsService {
 
       // Calculate streaks
       const { currentStreak, bestStreak } = this.calculateStreaks(closedPositions);
+      const avgRiskRewardSummary = this.calculateAvgRiskReward(allPositions);
 
       return {
         totalPositions: allPositions.length,
@@ -120,13 +125,165 @@ export class StatsService {
         largestWin: Math.round(largestWin * 100) / 100,
         largestLoss: Math.round(largestLoss * 100) / 100,
         currentStreak,
-        bestStreak
+        bestStreak,
+        avgRiskReward: avgRiskRewardSummary.avgRiskReward,
+        avgRiskRewardEligibleRowCount: avgRiskRewardSummary.eligibleRowCount,
+        avgRiskRewardExcludedRowCount: avgRiskRewardSummary.excludedRowCount
       };
 
     } catch (error) {
       logger.error('Error getting dashboard summary:', error);
       throw error;
     }
+  }
+
+  private calculateAvgRiskReward(
+    positions: Array<{
+      symbol: string;
+      entryPrice: number;
+      sl: number;
+      tpPlanning?: {
+        originalPlan?: {
+          plannedTps: Array<{
+            level: number;
+            targetPrice: number | null;
+            percentage: number;
+            isExactTarget: boolean;
+          }>;
+          provenance: {
+            usedFallback: boolean;
+            normalizedPercentages: boolean;
+          };
+        };
+      };
+    }>
+  ): {
+    avgRiskReward: number | null;
+    eligibleRowCount: number;
+    excludedRowCount: number;
+  } {
+    const eligibleRatios: number[] = [];
+
+    for (const position of positions) {
+      const rowRiskReward = this.calculatePositionRiskReward(position);
+      if (rowRiskReward !== null) {
+        eligibleRatios.push(rowRiskReward);
+      }
+    }
+
+    if (eligibleRatios.length === 0) {
+      return {
+        avgRiskReward: null,
+        eligibleRowCount: 0,
+        excludedRowCount: positions.length
+      };
+    }
+
+    const totalRiskReward = eligibleRatios.reduce((sum, value) => sum + value, 0);
+
+    return {
+      avgRiskReward: Math.round((totalRiskReward / eligibleRatios.length) * 100) / 100,
+      eligibleRowCount: eligibleRatios.length,
+      excludedRowCount: positions.length - eligibleRatios.length
+    };
+  }
+
+  private calculatePositionRiskReward(position: {
+    symbol: string;
+    entryPrice: number;
+    sl: number;
+    tpPlanning?: {
+      originalPlan?: {
+        plannedTps: Array<{
+          level: number;
+          targetPrice: number | null;
+          percentage: number;
+          isExactTarget: boolean;
+        }>;
+        provenance: {
+          usedFallback: boolean;
+          normalizedPercentages: boolean;
+        };
+      };
+    };
+  }): number | null {
+    const originalPlan = position.tpPlanning?.originalPlan;
+    if (!originalPlan) {
+      return null;
+    }
+
+    if (typeof position.symbol !== 'string' || position.symbol.trim().length === 0) {
+      return null;
+    }
+
+    if (!this.isFinitePositiveNumber(position.entryPrice) || !this.isFinitePositiveNumber(position.sl)) {
+      return null;
+    }
+
+    if (!originalPlan.provenance || originalPlan.provenance.usedFallback || originalPlan.provenance.normalizedPercentages) {
+      return null;
+    }
+
+    const plannedTps = originalPlan.plannedTps;
+    if (!Array.isArray(plannedTps) || plannedTps.length === 0) {
+      return null;
+    }
+
+    let totalPercentage = 0;
+    let weightedRewardPips = 0;
+
+    for (const plannedTp of plannedTps) {
+      if (!this.isEligiblePlannedTp(plannedTp)) {
+        return null;
+      }
+
+      totalPercentage += plannedTp.percentage;
+
+      const rewardPips = tpStrategyService.calculatePips(
+        position.entryPrice,
+        plannedTp.targetPrice,
+        position.symbol
+      );
+
+      weightedRewardPips += rewardPips * (plannedTp.percentage / 100);
+    }
+
+    if (Math.abs(totalPercentage - 100) > 0.01) {
+      return null;
+    }
+
+    const riskPips = tpStrategyService.calculatePips(position.entryPrice, position.sl, position.symbol);
+    if (!Number.isFinite(riskPips) || riskPips <= 0) {
+      return null;
+    }
+
+    const rowRiskReward = weightedRewardPips / riskPips;
+    if (!Number.isFinite(rowRiskReward)) {
+      return null;
+    }
+
+    return rowRiskReward;
+  }
+
+  private isEligiblePlannedTp(plannedTp: {
+    level: number;
+    targetPrice: number | null;
+    percentage: number;
+    isExactTarget: boolean;
+  }): plannedTp is {
+    level: number;
+    targetPrice: number;
+    percentage: number;
+    isExactTarget: true;
+  } {
+    return Number.isFinite(plannedTp.level)
+      && this.isFinitePositiveNumber(plannedTp.targetPrice)
+      && this.isFinitePositiveNumber(plannedTp.percentage)
+      && plannedTp.isExactTarget === true;
+  }
+
+  private isFinitePositiveNumber(value: unknown): value is number {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0;
   }
 
   /**

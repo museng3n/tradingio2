@@ -7,6 +7,8 @@ export interface DashboardSummary {
   totalPositions: number;
   openPositions: number;
   closedPositions: number;
+  winnerCount: number;
+  loserCount: number;
   winRate: number;
   totalProfit: number;
   todayProfit: number;
@@ -116,6 +118,8 @@ export class StatsService {
         totalPositions: allPositions.length,
         openPositions: openPositions.length,
         closedPositions: closedPositions.length,
+        winnerCount: winners.length,
+        loserCount: losers.length,
         winRate: closedPositions.length > 0 ? (winners.length / closedPositions.length) * 100 : 0,
         totalProfit: Math.round(totalProfit * 100) / 100,
         todayProfit: Math.round(todayProfit * 100) / 100,

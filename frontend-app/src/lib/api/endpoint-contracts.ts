@@ -16,6 +16,9 @@ export const canonicalApiContracts: readonly CanonicalApiContract[] = [
   { path: '/channels/toggle', method: 'POST' },
   { path: '/settings', method: 'GET' },
   { path: '/settings/update', method: 'POST' },
+  { path: '/telegram/runtime-status', method: 'GET' },
+  { path: '/telegram/activate', method: 'POST' },
+  { path: '/telegram/stop', method: 'POST' },
   { path: '/ea/test-connection', method: 'GET' },
   { path: '/ea/status', method: 'GET' },
 ];

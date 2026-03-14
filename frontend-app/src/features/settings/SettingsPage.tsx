@@ -16,6 +16,7 @@ import {
   TelegramChannelsSection,
   type TelegramChannelsSectionHandle,
 } from '@/features/settings/components/TelegramChannelsSection';
+import { TelegramRuntimeSection } from '@/features/settings/components/TelegramRuntimeSection';
 import {
   TPStrategySection,
   type TPStrategySectionHandle,
@@ -39,6 +40,8 @@ export function SettingsPage(): JSX.Element {
         <RiskManagementSection ref={riskManagementRef} />
 
         <TelegramChannelsSection ref={telegramChannelsRef} />
+
+        <TelegramRuntimeSection />
 
         <PositionSecuritySection ref={positionSecurityRef} />
 

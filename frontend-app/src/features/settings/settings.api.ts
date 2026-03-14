@@ -25,10 +25,84 @@ export interface TelegramChannelsSettingsResponse {
   };
 }
 
+export type TelegramRuntimeStatus =
+  | 'UPLOADED_NOT_ACTIVATED'
+  | 'PROVISIONING_RUNTIME'
+  | 'MONITORING_ACTIVE'
+  | 'DEGRADED_RECONNECTING'
+  | 'DISCONNECTED'
+  | 'AUTH_INVALID_OR_SESSION_EXPIRED';
+
+export interface TelegramRuntimeStatusResponse {
+  data: {
+    status: TelegramRuntimeStatus;
+    statusUpdatedAt: string | null;
+    sessionUploadedAt: string | null;
+    activationRequestedAt: string | null;
+    selectedChannels: TelegramSelectedChannel[];
+  };
+}
+
+export interface TelegramRuntimeActivationRequest {
+  runtimeDecryptionKey: string;
+}
+
+export interface TelegramRuntimeActivationResponse {
+  data: {
+    accepted: boolean;
+    deferred: boolean;
+    code:
+      | 'READY_FOR_RUNTIME_OWNER'
+      | 'MISSING_ENCRYPTED_SESSION'
+      | 'MISSING_SELECTED_CHANNELS'
+      | 'SESSION_NOT_DECRYPTABLE'
+      | 'ALREADY_PROVISIONING'
+      | 'ALREADY_ACTIVE'
+      | 'SESSION_REQUIRES_REAUTH'
+      | 'STARTED'
+      | 'RUNTIME_START_FAILED'
+      | 'USER_NOT_FOUND';
+    message: string;
+    effectiveStatus: TelegramRuntimeStatus;
+    selectedChannelsCount: number;
+    custody: {
+      hasEncryptedSession: boolean;
+      canDecryptForRuntimeUse: boolean;
+    };
+    activationRequestedAt: string | null;
+  };
+}
+
+export interface TelegramRuntimeStopResponse {
+  data: {
+    stopped: boolean;
+    code: 'STOPPED' | 'ALREADY_STOPPED' | 'USER_NOT_FOUND';
+    message: string;
+    status: TelegramRuntimeStatus | null;
+  };
+}
+
 export async function getTelegramChannelsSettings(): Promise<TelegramChannelsSettingsResponse> {
   return apiClient.get<TelegramChannelsSettingsResponse>(
     '/settings/telegram-channels'
   );
+}
+
+export async function getTelegramRuntimeStatus(): Promise<TelegramRuntimeStatusResponse> {
+  return apiClient.get<TelegramRuntimeStatusResponse>('/telegram/runtime-status');
+}
+
+export async function activateTelegramRuntime(
+  request: TelegramRuntimeActivationRequest
+): Promise<TelegramRuntimeActivationResponse> {
+  return apiClient.post<TelegramRuntimeActivationResponse>(
+    '/telegram/activate',
+    request
+  );
+}
+
+export async function stopTelegramRuntime(): Promise<TelegramRuntimeStopResponse> {
+  return apiClient.post<TelegramRuntimeStopResponse>('/telegram/stop', {});
 }
 
 export async function updateTelegramChannelsSettings(

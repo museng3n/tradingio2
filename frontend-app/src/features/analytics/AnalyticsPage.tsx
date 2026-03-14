@@ -1,9 +1,35 @@
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { JSX } from 'react';
+import { useAppShellStore } from '@/features/auth/auth.store';
+import { getAnalyticsSummary } from '@/features/analytics/analytics.api';
 
 type TpFilterKey = 'tp1' | 'tp2' | 'tp3' | 'tp4' | 'tp5' | 'tp6';
 
+const formatTradeCount = (value: number | undefined): string =>
+  typeof value === 'number' && Number.isFinite(value) ? String(value) : '-';
+
+const formatWinLossSummary = (winnerCount: number | undefined, loserCount: number | undefined): string =>
+  typeof winnerCount === 'number' && Number.isFinite(winnerCount) && typeof loserCount === 'number' && Number.isFinite(loserCount)
+    ? `${winnerCount}W / ${loserCount}L`
+    : '-W / -L';
+
+const formatPercentage = (value: number | undefined): string =>
+  typeof value === 'number' && Number.isFinite(value) ? `${value.toFixed(2)}%` : '-';
+
+const formatRatio = (value: number | undefined): string =>
+  typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : '-';
+
+const formatRiskReward = (value: number | null | undefined): string => {
+  if (value === null) {
+    return 'N/A';
+  }
+
+  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : '-';
+};
+
 export function AnalyticsPage(): JSX.Element {
+  const user = useAppShellStore((state) => state.user);
   const [filters, setFilters] = useState<Record<TpFilterKey, boolean>>({
     tp1: true,
     tp2: true,
@@ -20,6 +46,16 @@ export function AnalyticsPage(): JSX.Element {
 
     return 'px-3 py-1.5 rounded-lg bg-gray-700 text-gray-400 border-2 border-gray-700 text-sm font-medium';
   };
+  const { data } = useQuery({
+    queryKey: ['analytics-summary', user?.id],
+    queryFn: getAnalyticsSummary,
+    enabled: user !== null,
+  });
+  const totalTradesValue = formatTradeCount(data?.totalPositions);
+  const winLossSummaryValue = formatWinLossSummary(data?.winnerCount, data?.loserCount);
+  const winRateValue = formatPercentage(data?.winRate);
+  const profitFactorValue = formatRatio(data?.profitFactor);
+  const avgRiskRewardValue = formatRiskReward(data?.avgRiskReward);
 
   return (
     <>
@@ -54,8 +90,8 @@ export function AnalyticsPage(): JSX.Element {
               </svg>
               TOTAL TRADES
             </div>
-            <div className="text-3xl font-bold text-white mb-1">0</div>
-            <div className="text-sm text-gray-500">0W / 0L</div>
+            <div className="text-3xl font-bold text-white mb-1">{totalTradesValue}</div>
+            <div className="text-sm text-gray-500">{winLossSummaryValue}</div>
           </div>
 
           <div>
@@ -65,7 +101,7 @@ export function AnalyticsPage(): JSX.Element {
               </svg>
               WIN RATE
             </div>
-            <div className="text-3xl font-bold text-white">0.00%</div>
+            <div className="text-3xl font-bold text-white">{winRateValue}</div>
           </div>
 
           <div>
@@ -75,7 +111,7 @@ export function AnalyticsPage(): JSX.Element {
               </svg>
               PROFIT FACTOR
             </div>
-            <div className="text-3xl font-bold text-white">0.00</div>
+            <div className="text-3xl font-bold text-white">{profitFactorValue}</div>
           </div>
 
           <div>
@@ -85,7 +121,7 @@ export function AnalyticsPage(): JSX.Element {
               </svg>
               AVG RISK/REWARD
             </div>
-            <div className="text-3xl font-bold text-white">0.00</div>
+            <div className="text-3xl font-bold text-white">{avgRiskRewardValue}</div>
           </div>
         </div>
       </div>

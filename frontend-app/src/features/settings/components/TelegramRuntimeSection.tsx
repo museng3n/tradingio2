@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import type { JSX } from 'react';
 import { useAppShellStore } from '@/features/auth/auth.store';
 import {
@@ -62,7 +62,8 @@ export function TelegramRuntimeSection(): JSX.Element {
   const user = useAppShellStore((state) => state.user);
   const queryClient = useQueryClient();
   const [runtimeDecryptionKey, setRuntimeDecryptionKey] = useState('');
-  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [isActivating, setIsActivating] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
 
   const queryKey = ['settings', 'telegram-runtime', user?.id];
   const { data, isLoading, error } = useQuery({
@@ -71,53 +72,8 @@ export function TelegramRuntimeSection(): JSX.Element {
     enabled: user !== null,
   });
 
-  const activateMutation = useMutation({
-    mutationFn: activateTelegramRuntime,
-    onSuccess: async (response) => {
-      setFeedbackMessage(response.data.accepted ? null : response.data.message);
-      await queryClient.invalidateQueries({ queryKey });
-    },
-    onError: (mutationError) => {
-      if (mutationError instanceof ApiError) {
-        setFeedbackMessage(mutationError.message);
-        return;
-      }
-
-      setFeedbackMessage('Unable to activate Telegram runtime');
-    },
-    onSettled: () => {
-      setRuntimeDecryptionKey('');
-    },
-  });
-
-  const stopMutation = useMutation({
-    mutationFn: stopTelegramRuntime,
-    onSuccess: async (response) => {
-      setFeedbackMessage(
-        response.data.stopped || response.data.code === 'ALREADY_STOPPED'
-          ? null
-          : response.data.message
-      );
-      await queryClient.invalidateQueries({ queryKey });
-    },
-    onError: (mutationError) => {
-      if (mutationError instanceof ApiError) {
-        setFeedbackMessage(mutationError.message);
-        return;
-      }
-
-      setFeedbackMessage('Unable to stop Telegram runtime');
-    },
-  });
-
-  useEffect(() => {
-    if (error instanceof ApiError) {
-      setFeedbackMessage(error.message);
-    }
-  }, [error]);
-
   const status = data?.data.status ?? null;
-  const isBusy = activateMutation.isPending || stopMutation.isPending;
+  const isBusy = isActivating || isStopping;
   const canActivate =
     runtimeDecryptionKey.trim().length > 0 &&
     status !== 'MONITORING_ACTIVE' &&
@@ -130,6 +86,44 @@ export function TelegramRuntimeSection(): JSX.Element {
       status === 'DEGRADED_RECONNECTING' ||
       status === 'PROVISIONING_RUNTIME') &&
     !isBusy;
+
+  const handleActivate = async (): Promise<void> => {
+    if (!canActivate) {
+      return;
+    }
+
+    const key = runtimeDecryptionKey.trim();
+    setIsActivating(true);
+
+    try {
+      await activateTelegramRuntime({
+        runtimeDecryptionKey: key,
+      });
+      await queryClient.invalidateQueries({ queryKey });
+    } catch (activationError) {
+      console.error('Unable to activate Telegram runtime:', activationError);
+    } finally {
+      setRuntimeDecryptionKey('');
+      setIsActivating(false);
+    }
+  };
+
+  const handleStop = async (): Promise<void> => {
+    if (!canStop) {
+      return;
+    }
+
+    setIsStopping(true);
+
+    try {
+      await stopTelegramRuntime();
+      await queryClient.invalidateQueries({ queryKey });
+    } catch (stopError) {
+      console.error('Unable to stop Telegram runtime:', stopError);
+    } finally {
+      setIsStopping(false);
+    }
+  };
 
   return (
     <div className="card-dark rounded-lg p-6">
@@ -164,9 +158,6 @@ export function TelegramRuntimeSection(): JSX.Element {
           value={runtimeDecryptionKey}
           onChange={(event) => {
             setRuntimeDecryptionKey(event.target.value);
-            if (feedbackMessage !== null) {
-              setFeedbackMessage(null);
-            }
           }}
           placeholder="Enter runtime decryption key"
           className="w-full px-4 py-2 bg-black border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
@@ -176,13 +167,7 @@ export function TelegramRuntimeSection(): JSX.Element {
       <div className="flex gap-4">
         <button
           onClick={() => {
-            if (!canActivate) {
-              return;
-            }
-
-            void activateMutation.mutateAsync({
-              runtimeDecryptionKey: runtimeDecryptionKey.trim(),
-            });
+            void handleActivate();
           }}
           disabled={!canActivate}
           className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
@@ -195,11 +180,7 @@ export function TelegramRuntimeSection(): JSX.Element {
         </button>
         <button
           onClick={() => {
-            if (!canStop) {
-              return;
-            }
-
-            void stopMutation.mutateAsync();
+            void handleStop();
           }}
           disabled={!canStop}
           className="px-6 py-3 rounded-lg text-gray-400 hover:bg-gray-800 font-medium flex items-center gap-2 border border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
@@ -210,10 +191,6 @@ export function TelegramRuntimeSection(): JSX.Element {
           <span>Stop</span>
         </button>
       </div>
-
-      {feedbackMessage ? (
-        <p className="text-xs text-yellow-500 mt-4">{feedbackMessage}</p>
-      ) : null}
     </div>
   );
 }

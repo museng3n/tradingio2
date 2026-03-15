@@ -3,6 +3,7 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import statsService from '../services/analytics/stats.service';
 import reportsService from '../services/analytics/reports.service';
 import { AppError } from '../utils/errors';
+import type { TPStatisticsGranularity } from '../services/analytics/stats.service';
 
 export class AnalyticsController {
   /**
@@ -32,12 +33,17 @@ export class AnalyticsController {
   async getTPStatistics(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user?.userId;
+      const granularity = (req.query.granularity as TPStatisticsGranularity | undefined) ?? 'daily';
 
       if (!userId) {
         throw new AppError('User ID required', 400);
       }
 
-      const tpStats = await statsService.getTPStatistics(userId);
+      if (!['daily', 'weekly', 'monthly'].includes(granularity)) {
+        throw new AppError('Invalid granularity. Use daily, weekly, or monthly', 400);
+      }
+
+      const tpStats = await statsService.getTPStatistics(userId, granularity);
 
       res.json(tpStats);
     } catch (error) {

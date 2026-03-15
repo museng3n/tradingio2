@@ -32,23 +32,48 @@ export interface DashboardSummary {
 }
 
 export interface TPStatistics {
-  totalClosed: number;
-  tp1HitCount: number;
-  tp1HitRate: number;
-  tp2HitCount: number;
-  tp2HitRate: number;
-  tp3HitCount: number;
-  tp3HitRate: number;
-  tp4HitCount: number;
-  tp4HitRate: number;
-  slHitCount: number;
-  slHitRate: number;
-  chartData: Array<{
-    name: string;
-    value: number;
-    percentage: number;
-  }>;
+  supportedLevels: number[];
+  summaryCardLevels: number[];
+  granularity: TPStatisticsGranularity;
+  historyStartAt: string | null;
+  hasSufficientHistory: boolean;
+  insufficientHistoryReason: 'no_tp_hit_history' | 'sparse_history' | null;
+  levelSummaries: TPLevelSummary[];
+  series: TPLevelSeries[];
 }
+
+export type TPStatisticsGranularity = 'daily' | 'weekly' | 'monthly';
+
+export interface TPLevelSummary {
+  level: number;
+  label: string;
+  configuredClosedPositionCount: number;
+  hitCount: number;
+  hitRatePercent: number | null;
+  totalHitPips: number | null;
+  averageHitPips: number | null;
+  pipsCoverageCount: number;
+  pipsCoverageStatus: 'full' | 'partial' | 'none';
+}
+
+export interface TPSeriesPoint {
+  bucketStart: string;
+  bucketLabel: string;
+  configuredClosedPositionCount: number;
+  hitCount: number;
+  totalHitPips: number | null;
+  pipsCoverageCount: number;
+  pipsCoverageStatus: 'full' | 'partial' | 'none';
+}
+
+export interface TPLevelSeries {
+  level: number;
+  label: string;
+  points: TPSeriesPoint[];
+}
+
+const SUPPORTED_TP_LEVELS = [1, 2, 3, 4, 5, 6] as const;
+const SUMMARY_CARD_LEVELS = [1, 2, 3, 4] as const;
 
 export interface ProfitChartData {
   period: '7d' | '30d' | '90d';
@@ -390,87 +415,322 @@ export class StatsService {
   /**
    * Get TP statistics for achievement chart
    */
-  async getTPStatistics(userId: string): Promise<TPStatistics> {
+  async getTPStatistics(userId: string, granularity: TPStatisticsGranularity = 'daily'): Promise<TPStatistics> {
     try {
-      const closedPositions = await Position.find({ userId, status: 'CLOSED' });
-      const totalClosed = closedPositions.length;
+      const closedPositions = await Position.find({ userId, status: 'CLOSED' })
+        .select('status type symbol entryPrice closedAt tps.level tps.price tps.hit tps.hitAt')
+        .lean();
 
-      if (totalClosed === 0) {
-        return {
-          totalClosed: 0,
-          tp1HitCount: 0,
-          tp1HitRate: 0,
-          tp2HitCount: 0,
-          tp2HitRate: 0,
-          tp3HitCount: 0,
-          tp3HitRate: 0,
-          tp4HitCount: 0,
-          tp4HitRate: 0,
-          slHitCount: 0,
-          slHitRate: 0,
-          chartData: []
-        };
-      }
-
-      // Count TP hits
-      let tp1HitCount = 0;
-      let tp2HitCount = 0;
-      let tp3HitCount = 0;
-      let tp4HitCount = 0;
-      let slHitCount = 0;
-
-      for (const position of closedPositions) {
-        const hitTPs = position.tps.filter(tp => tp.hit);
-
-        if (hitTPs.length === 0 && position.closeReason === 'SL') {
-          slHitCount++;
-        } else {
-          // Count which TPs were hit
-          for (const tp of hitTPs) {
-            switch (tp.level) {
-              case 1: tp1HitCount++; break;
-              case 2: tp2HitCount++; break;
-              case 3: tp3HitCount++; break;
-              case 4: tp4HitCount++; break;
-            }
-          }
-        }
-      }
-
-      const tp1HitRate = (tp1HitCount / totalClosed) * 100;
-      const tp2HitRate = (tp2HitCount / totalClosed) * 100;
-      const tp3HitRate = (tp3HitCount / totalClosed) * 100;
-      const tp4HitRate = (tp4HitCount / totalClosed) * 100;
-      const slHitRate = (slHitCount / totalClosed) * 100;
-
-      // Generate chart data
-      const chartData = [
-        { name: 'TP1', value: tp1HitCount, percentage: Math.round(tp1HitRate * 10) / 10 },
-        { name: 'TP2', value: tp2HitCount, percentage: Math.round(tp2HitRate * 10) / 10 },
-        { name: 'TP3', value: tp3HitCount, percentage: Math.round(tp3HitRate * 10) / 10 },
-        { name: 'TP4', value: tp4HitCount, percentage: Math.round(tp4HitRate * 10) / 10 },
-        { name: 'SL', value: slHitCount, percentage: Math.round(slHitRate * 10) / 10 }
-      ];
+      const levelSummaries = SUPPORTED_TP_LEVELS.map((level) =>
+        this.buildTPLevelSummary(closedPositions, level)
+      );
+      const hitEventDates = closedPositions.flatMap((position) => this.getSupportedHitEventDates(position));
+      const historyStartDate = hitEventDates.length > 0
+        ? new Date(Math.min(...hitEventDates.map((date) => date.getTime())))
+        : null;
+      const series = this.buildTPSeries(closedPositions, granularity, historyStartDate);
+      const nonEmptyHitBuckets = new Set(
+        series.flatMap((levelSeries) =>
+          levelSeries.points
+            .filter((point) => point.hitCount > 0)
+            .map((point) => point.bucketStart)
+        )
+      );
 
       return {
-        totalClosed,
-        tp1HitCount,
-        tp1HitRate: Math.round(tp1HitRate * 10) / 10,
-        tp2HitCount,
-        tp2HitRate: Math.round(tp2HitRate * 10) / 10,
-        tp3HitCount,
-        tp3HitRate: Math.round(tp3HitRate * 10) / 10,
-        tp4HitCount,
-        tp4HitRate: Math.round(tp4HitRate * 10) / 10,
-        slHitCount,
-        slHitRate: Math.round(slHitRate * 10) / 10,
-        chartData
+        supportedLevels: [...SUPPORTED_TP_LEVELS],
+        summaryCardLevels: [...SUMMARY_CARD_LEVELS],
+        granularity,
+        historyStartAt: historyStartDate?.toISOString() ?? null,
+        hasSufficientHistory: nonEmptyHitBuckets.size >= 2,
+        insufficientHistoryReason: historyStartDate === null
+          ? 'no_tp_hit_history'
+          : nonEmptyHitBuckets.size >= 2
+            ? null
+            : 'sparse_history',
+        levelSummaries,
+        series
       };
 
     } catch (error) {
       logger.error('Error getting TP statistics:', error);
       throw error;
     }
+  }
+
+  private buildTPLevelSummary(
+    positions: Array<{
+      type: 'BUY' | 'SELL';
+      symbol: string;
+      entryPrice: number;
+      tps: Array<{
+        level: number;
+        price: number;
+        hit: boolean;
+        hitAt?: Date;
+      }>;
+      closedAt?: Date;
+    }>,
+    level: number
+  ): TPLevelSummary {
+    const configuredPositions = positions
+      .map((position) => ({ position, tp: this.getSupportedTP(position, level) }))
+      .filter((entry): entry is typeof entry & {
+        tp: { level: number; price: number; hit: boolean; hitAt?: Date };
+      } => entry.tp !== null);
+
+    const hitEntries = configuredPositions.filter((entry) => entry.tp.hit);
+    const coveredPips = hitEntries
+      .map((entry) => this.calculateSupportedHitPips(entry.position, entry.tp))
+      .filter((value): value is number => value !== null);
+
+    return {
+      level,
+      label: `TP${level}`,
+      configuredClosedPositionCount: configuredPositions.length,
+      hitCount: hitEntries.length,
+      hitRatePercent: configuredPositions.length > 0
+        ? Math.round((hitEntries.length / configuredPositions.length) * 10000) / 100
+        : null,
+      totalHitPips: coveredPips.length > 0
+        ? Math.round(coveredPips.reduce((sum, value) => sum + value, 0) * 100) / 100
+        : null,
+      averageHitPips: coveredPips.length > 0
+        ? Math.round((coveredPips.reduce((sum, value) => sum + value, 0) / coveredPips.length) * 100) / 100
+        : null,
+      pipsCoverageCount: coveredPips.length,
+      pipsCoverageStatus: this.getPipsCoverageStatus(hitEntries.length, coveredPips.length)
+    };
+  }
+
+  private buildTPSeries(
+    positions: Array<{
+      type: 'BUY' | 'SELL';
+      symbol: string;
+      entryPrice: number;
+      tps: Array<{
+        level: number;
+        price: number;
+        hit: boolean;
+        hitAt?: Date;
+      }>;
+      closedAt?: Date;
+    }>,
+    granularity: TPStatisticsGranularity,
+    historyStartDate: Date | null
+  ): TPLevelSeries[] {
+    if (historyStartDate === null) {
+      return SUPPORTED_TP_LEVELS.map((level) => ({
+        level,
+        label: `TP${level}`,
+        points: []
+      }));
+    }
+
+    const timelineEnd = this.getLatestRelevantTPEventDate(positions) ?? historyStartDate;
+    const buckets = this.buildTimeBuckets(historyStartDate, timelineEnd, granularity);
+
+    return SUPPORTED_TP_LEVELS.map((level) => ({
+      level,
+      label: `TP${level}`,
+      points: buckets.map((bucketStart) => {
+        const configuredEntries = positions
+          .map((position) => ({ position, tp: this.getSupportedTP(position, level) }))
+          .filter((entry): entry is typeof entry & {
+            tp: { level: number; price: number; hit: boolean; hitAt?: Date };
+          } => entry.tp !== null)
+          .filter((entry) => {
+            const eventAt = this.getTPEventAt(entry.position.closedAt, entry.tp.hitAt, entry.tp.hit);
+            return eventAt !== null && this.getBucketStart(eventAt, granularity).getTime() === bucketStart.getTime();
+          });
+
+        const hitEntries = configuredEntries.filter((entry) => entry.tp.hit);
+        const coveredPips = hitEntries
+          .map((entry) => this.calculateSupportedHitPips(entry.position, entry.tp))
+          .filter((value): value is number => value !== null);
+
+        return {
+          bucketStart: bucketStart.toISOString(),
+          bucketLabel: this.formatBucketLabel(bucketStart, granularity),
+          configuredClosedPositionCount: configuredEntries.length,
+          hitCount: hitEntries.length,
+          totalHitPips: coveredPips.length > 0
+            ? Math.round(coveredPips.reduce((sum, value) => sum + value, 0) * 100) / 100
+            : null,
+          pipsCoverageCount: coveredPips.length,
+          pipsCoverageStatus: this.getPipsCoverageStatus(hitEntries.length, coveredPips.length)
+        };
+      })
+    }));
+  }
+
+  private getSupportedHitEventDates(position: {
+    tps: Array<{ level: number; hit: boolean; hitAt?: Date }>;
+    closedAt?: Date;
+  }): Date[] {
+    return position.tps
+      .filter((tp) => SUPPORTED_TP_LEVELS.includes(tp.level as (typeof SUPPORTED_TP_LEVELS)[number]) && tp.hit)
+      .map((tp) => this.getTPEventAt(position.closedAt, tp.hitAt, true))
+      .filter((date): date is Date => date instanceof Date);
+  }
+
+  private getLatestRelevantTPEventDate(positions: Array<{
+    tps: Array<{ level: number; hit: boolean; hitAt?: Date }>;
+    closedAt?: Date;
+  }>): Date | null {
+    const dates = positions.flatMap((position) =>
+      position.tps
+        .filter((tp) => SUPPORTED_TP_LEVELS.includes(tp.level as (typeof SUPPORTED_TP_LEVELS)[number]))
+        .map((tp) => this.getTPEventAt(position.closedAt, tp.hitAt, tp.hit))
+        .filter((date): date is Date => date instanceof Date)
+    );
+
+    return dates.length > 0
+      ? new Date(Math.max(...dates.map((date) => date.getTime())))
+      : null;
+  }
+
+  private getSupportedTP(
+    position: {
+      tps: Array<{
+        level: number;
+        price: number;
+        hit: boolean;
+        hitAt?: Date;
+      }>;
+    },
+    level: number
+  ): {
+    level: number;
+    price: number;
+    hit: boolean;
+    hitAt?: Date;
+  } | null {
+    if (!SUPPORTED_TP_LEVELS.includes(level as (typeof SUPPORTED_TP_LEVELS)[number])) {
+      return null;
+    }
+
+    return position.tps.find((tp) => tp.level === level) ?? null;
+  }
+
+  private calculateSupportedHitPips(
+    position: {
+      type: 'BUY' | 'SELL';
+      symbol: string;
+      entryPrice: number;
+    },
+    tp: {
+      price: number;
+      hit: boolean;
+    }
+  ): number | null {
+    if (!tp.hit) {
+      return null;
+    }
+
+    if (!this.isSupportedPipSymbol(position.symbol)) {
+      return null;
+    }
+
+    if (!this.isFinitePositiveNumber(position.entryPrice) || !this.isFinitePositiveNumber(tp.price)) {
+      return null;
+    }
+
+    if (position.type === 'BUY' && tp.price <= position.entryPrice) {
+      return null;
+    }
+
+    if (position.type === 'SELL' && tp.price >= position.entryPrice) {
+      return null;
+    }
+
+    const pips = tpStrategyService.calculatePips(position.entryPrice, tp.price, position.symbol);
+    return Number.isFinite(pips) && pips > 0 ? pips : null;
+  }
+
+  private isSupportedPipSymbol(symbol: string): boolean {
+    const upperSymbol = symbol.toUpperCase();
+
+    if (upperSymbol.includes('XAU') || upperSymbol.includes('BTC')) {
+      return true;
+    }
+
+    return /^[A-Z]{6}$/.test(upperSymbol);
+  }
+
+  private getTPEventAt(closedAt: Date | undefined, hitAt: Date | undefined, hit: boolean): Date | null {
+    if (hit && hitAt instanceof Date) {
+      return hitAt;
+    }
+
+    return closedAt instanceof Date ? closedAt : null;
+  }
+
+  private getPipsCoverageStatus(hitCount: number, pipsCoverageCount: number): 'full' | 'partial' | 'none' {
+    if (hitCount === 0 || pipsCoverageCount === 0) {
+      return 'none';
+    }
+
+    return hitCount === pipsCoverageCount ? 'full' : 'partial';
+  }
+
+  private buildTimeBuckets(startDate: Date, endDate: Date, granularity: TPStatisticsGranularity): Date[] {
+    const buckets: Date[] = [];
+    let current = this.getBucketStart(startDate, granularity);
+    const finalBucket = this.getBucketStart(endDate, granularity);
+
+    while (current.getTime() <= finalBucket.getTime()) {
+      buckets.push(new Date(current));
+      current = this.getNextBucketStart(current, granularity);
+    }
+
+    return buckets;
+  }
+
+  private getBucketStart(date: Date, granularity: TPStatisticsGranularity): Date {
+    const bucket = new Date(date);
+
+    if (granularity === 'daily') {
+      bucket.setUTCHours(0, 0, 0, 0);
+      return bucket;
+    }
+
+    if (granularity === 'weekly') {
+      bucket.setUTCHours(0, 0, 0, 0);
+      const day = bucket.getUTCDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      bucket.setUTCDate(bucket.getUTCDate() + diff);
+      return bucket;
+    }
+
+    bucket.setUTCDate(1);
+    bucket.setUTCHours(0, 0, 0, 0);
+    return bucket;
+  }
+
+  private getNextBucketStart(bucketStart: Date, granularity: TPStatisticsGranularity): Date {
+    const next = new Date(bucketStart);
+
+    if (granularity === 'daily') {
+      next.setUTCDate(next.getUTCDate() + 1);
+      return next;
+    }
+
+    if (granularity === 'weekly') {
+      next.setUTCDate(next.getUTCDate() + 7);
+      return next;
+    }
+
+    next.setUTCMonth(next.getUTCMonth() + 1);
+    return next;
+  }
+
+  private formatBucketLabel(bucketStart: Date, granularity: TPStatisticsGranularity): string {
+    if (granularity === 'monthly') {
+      return bucketStart.toISOString().slice(0, 7);
+    }
+
+    return bucketStart.toISOString().slice(0, 10);
   }
 
   /**

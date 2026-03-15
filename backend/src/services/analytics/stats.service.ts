@@ -40,6 +40,7 @@ export interface TPStatistics {
   insufficientHistoryReason: 'no_tp_hit_history' | 'sparse_history' | null;
   levelSummaries: TPLevelSummary[];
   series: TPLevelSeries[];
+  unverifiedSymbolsInScope?: string[];
 }
 
 export type TPStatisticsGranularity = 'daily' | 'weekly' | 'monthly';
@@ -54,6 +55,7 @@ export interface TPLevelSummary {
   averageHitPips: number | null;
   pipsCoverageCount: number;
   pipsCoverageStatus: 'full' | 'partial' | 'none';
+  unverifiedSymbols?: string[];
 }
 
 export interface TPSeriesPoint {
@@ -64,12 +66,18 @@ export interface TPSeriesPoint {
   totalHitPips: number | null;
   pipsCoverageCount: number;
   pipsCoverageStatus: 'full' | 'partial' | 'none';
+  unverifiedSymbols?: string[];
 }
 
 export interface TPLevelSeries {
   level: number;
   label: string;
   points: TPSeriesPoint[];
+}
+
+interface SupportedTPHitAnalysis {
+  pips: number | null;
+  unverifiedSymbol: string | null;
 }
 
 const SUPPORTED_TP_LEVELS = [1, 2, 3, 4, 5, 6] as const;
@@ -449,7 +457,8 @@ export class StatsService {
             ? null
             : 'sparse_history',
         levelSummaries,
-        series
+        series,
+        unverifiedSymbolsInScope: this.getUnverifiedSymbolsInScope(closedPositions)
       };
 
     } catch (error) {
@@ -480,9 +489,11 @@ export class StatsService {
       } => entry.tp !== null);
 
     const hitEntries = configuredPositions.filter((entry) => entry.tp.hit);
-    const coveredPips = hitEntries
-      .map((entry) => this.calculateSupportedHitPips(entry.position, entry.tp))
+    const hitAnalyses = hitEntries.map((entry) => this.analyzeSupportedHitPips(entry.position, entry.tp));
+    const coveredPips = hitAnalyses
+      .map((entry) => entry.pips)
       .filter((value): value is number => value !== null);
+    const unverifiedSymbols = this.getUniqueUnverifiedSymbols(hitAnalyses);
 
     return {
       level,
@@ -499,7 +510,8 @@ export class StatsService {
         ? Math.round((coveredPips.reduce((sum, value) => sum + value, 0) / coveredPips.length) * 100) / 100
         : null,
       pipsCoverageCount: coveredPips.length,
-      pipsCoverageStatus: this.getPipsCoverageStatus(hitEntries.length, coveredPips.length)
+      pipsCoverageStatus: this.getPipsCoverageStatus(hitEntries.length, coveredPips.length),
+      unverifiedSymbols: unverifiedSymbols.length > 0 ? unverifiedSymbols : undefined
     };
   }
 
@@ -545,9 +557,11 @@ export class StatsService {
           });
 
         const hitEntries = configuredEntries.filter((entry) => entry.tp.hit);
-        const coveredPips = hitEntries
-          .map((entry) => this.calculateSupportedHitPips(entry.position, entry.tp))
+        const hitAnalyses = hitEntries.map((entry) => this.analyzeSupportedHitPips(entry.position, entry.tp));
+        const coveredPips = hitAnalyses
+          .map((entry) => entry.pips)
           .filter((value): value is number => value !== null);
+        const unverifiedSymbols = this.getUniqueUnverifiedSymbols(hitAnalyses);
 
         return {
           bucketStart: bucketStart.toISOString(),
@@ -558,7 +572,8 @@ export class StatsService {
             ? Math.round(coveredPips.reduce((sum, value) => sum + value, 0) * 100) / 100
             : null,
           pipsCoverageCount: coveredPips.length,
-          pipsCoverageStatus: this.getPipsCoverageStatus(hitEntries.length, coveredPips.length)
+          pipsCoverageStatus: this.getPipsCoverageStatus(hitEntries.length, coveredPips.length),
+          unverifiedSymbols: unverifiedSymbols.length > 0 ? unverifiedSymbols : undefined
         };
       })
     }));
@@ -613,7 +628,7 @@ export class StatsService {
     return position.tps.find((tp) => tp.level === level) ?? null;
   }
 
-  private calculateSupportedHitPips(
+  private analyzeSupportedHitPips(
     position: {
       type: 'BUY' | 'SELL';
       symbol: string;
@@ -623,29 +638,32 @@ export class StatsService {
       price: number;
       hit: boolean;
     }
-  ): number | null {
+  ): SupportedTPHitAnalysis {
     if (!tp.hit) {
-      return null;
+      return { pips: null, unverifiedSymbol: null };
     }
 
     if (!this.isSupportedPipSymbol(position.symbol)) {
-      return null;
+      return { pips: null, unverifiedSymbol: position.symbol.toUpperCase() };
     }
 
     if (!this.isFinitePositiveNumber(position.entryPrice) || !this.isFinitePositiveNumber(tp.price)) {
-      return null;
+      return { pips: null, unverifiedSymbol: null };
     }
 
     if (position.type === 'BUY' && tp.price <= position.entryPrice) {
-      return null;
+      return { pips: null, unverifiedSymbol: null };
     }
 
     if (position.type === 'SELL' && tp.price >= position.entryPrice) {
-      return null;
+      return { pips: null, unverifiedSymbol: null };
     }
 
     const pips = tpStrategyService.calculatePips(position.entryPrice, tp.price, position.symbol);
-    return Number.isFinite(pips) && pips > 0 ? pips : null;
+    return {
+      pips: Number.isFinite(pips) && pips > 0 ? pips : null,
+      unverifiedSymbol: null
+    };
   }
 
   private isSupportedPipSymbol(symbol: string): boolean {
@@ -656,6 +674,48 @@ export class StatsService {
     }
 
     return /^[A-Z]{6}$/.test(upperSymbol);
+  }
+
+  private getUnverifiedSymbolsInScope(positions: Array<{
+    type: 'BUY' | 'SELL';
+    symbol: string;
+    entryPrice: number;
+    tps: Array<{
+      level: number;
+      price: number;
+      hit: boolean;
+      hitAt?: Date;
+    }>;
+    closedAt?: Date;
+  }>): string[] | undefined {
+    const unverifiedSymbols = new Set<string>();
+
+    for (const level of SUPPORTED_TP_LEVELS) {
+      const hitAnalyses = positions
+        .map((position) => ({ position, tp: this.getSupportedTP(position, level) }))
+        .filter((entry): entry is typeof entry & {
+          tp: { level: number; price: number; hit: boolean; hitAt?: Date };
+        } => entry.tp !== null && entry.tp.hit)
+        .map((entry) => this.analyzeSupportedHitPips(entry.position, entry.tp));
+
+      for (const symbol of this.getUniqueUnverifiedSymbols(hitAnalyses)) {
+        unverifiedSymbols.add(symbol);
+      }
+    }
+
+    return unverifiedSymbols.size > 0 ? [...unverifiedSymbols].sort() : undefined;
+  }
+
+  private getUniqueUnverifiedSymbols(hitAnalyses: SupportedTPHitAnalysis[]): string[] {
+    const symbols = new Set<string>();
+
+    for (const entry of hitAnalyses) {
+      if (entry.unverifiedSymbol) {
+        symbols.add(entry.unverifiedSymbol);
+      }
+    }
+
+    return [...symbols].sort();
   }
 
   private getTPEventAt(closedAt: Date | undefined, hitAt: Date | undefined, hit: boolean): Date | null {

@@ -22,11 +22,14 @@
 - Trading Statistics slice completed and published.
 - Drawdown persistence slice completed and published.
 - Best & Worst slice completed and published.
+- Profit & Loss slice completed and published.
 
-## Current Accepted Local Checkpoint
-- Local `HEAD` at the start of the current milestone matched the published orchestration baseline `759d0dfe3d92ef6f8fe587a57f5cc58d46e1ebc8`.
-- Profit & Loss frontend binding is the current accepted local milestone in progress on top of that published baseline.
-- Current `origin/main` at milestone start: `759d0dfe3d92ef6f8fe587a57f5cc58d46e1ebc8`
+## Current Published Baseline
+- Local `HEAD`: `6e9850a850855c124cad80129dbd4a70488c7efb`
+- Current `origin/main`: `6e9850a850855c124cad80129dbd4a70488c7efb`
+- Published commits now on `origin/main`:
+  - `51602be360e101402fb432f3c6de995cbf24e0bb` `Bind Profit & Loss frontend to published summary contract`
+  - `6e9850a850855c124cad80129dbd4a70488c7efb` `Correct Sharpe orchestration contract wording`
 - Accepted unrelated local extras:
   - `IMPORTANT STARTUP RULE FOR THIS CHA.txt`
   - `frontend/proposals/`
@@ -41,6 +44,5 @@
   - otherwise show gray/de-emphasized state with the static inline hint `Insufficient data`
 
 ## Current High-Priority Direction
-1. Publish the accepted Profit & Loss frontend binding checkpoint.
-2. Then continue with the next narrow analytics milestone from the live repo state.
-3. Preserve the approved Sharpe insufficient-data behavior unless a future truthful backend Sharpe data path is accepted.
+1. Begin the TP Achievement Statistics corrective contract-spec phase.
+2. Preserve the published Profit & Loss semantics and approved Sharpe insufficient-data inline hint behavior.

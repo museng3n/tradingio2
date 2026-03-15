@@ -1,15 +1,14 @@
 # Current Milestone
 
-- Active orchestration milestone: establish the repo-local milestone orchestration baseline and keep it truthful to the live repo.
+- Active orchestration milestone: close the published Profit & Loss milestone cleanly and keep repo-local orchestration truthful to the live repo.
 
 # Current Execution Path
 
-- Current accepted local product checkpoint: Profit & Loss frontend binding milestone is now the active local checkpoint on top of the published baseline.
+- Current published product checkpoint on `origin/main`: `6e9850a850855c124cad80129dbd4a70488c7efb` `Correct Sharpe orchestration contract wording`
 - Current product milestone after this orchestration work:
-  - publish the accepted Profit & Loss frontend binding checkpoint
-  - then proceed to the next narrow analytics contract/binding milestone
+  - begin the TP Achievement Statistics corrective contract-spec phase
 
 # Guardrails
 
-- Do not pretend later Profit & Loss frontend work is already done.
+- Do not reopen the published Profit & Loss milestone unless the live repo contradicts it.
 - Do not reopen accepted published slices unless they become a true prerequisite.

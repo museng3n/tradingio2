@@ -38,7 +38,7 @@
 - `SHARPE RATIO` must not be invented.
 - Later frontend Sharpe rule:
   - compute only when at least 60 daily return observations are available
-  - otherwise show gray/de-emphasized state with a very short tooltip indicating insufficient data
+  - otherwise show gray/de-emphasized state with the static inline hint `Insufficient data`
 
 ## Current High-Priority Direction
 1. Publish the accepted Profit & Loss frontend binding checkpoint.

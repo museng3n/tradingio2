@@ -4,10 +4,10 @@
 
 # Current Execution Path
 
-- Current accepted local product checkpoint: `c7ab246049708ebfe5d8a3d7c2d08cb91e976352` `Complete Profit & Loss summary contract`
+- Current accepted local product checkpoint: Profit & Loss frontend binding milestone is now the active local checkpoint on top of the published baseline.
 - Current product milestone after this orchestration work:
-  - publish the accepted Profit & Loss backend checkpoint
-  - then bind the Profit & Loss frontend card truthfully
+  - publish the accepted Profit & Loss frontend binding checkpoint
+  - then proceed to the next narrow analytics contract/binding milestone
 
 # Guardrails
 

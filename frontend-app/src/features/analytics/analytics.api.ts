@@ -8,6 +8,8 @@ export interface AnalyticsSummaryResponse {
   loserCount: number;
   winRate: number;
   totalProfit: number;
+  totalWinningProfit: number;
+  totalLosingProfit: number;
   todayProfit: number;
   avgProfit: number;
   avgLoss: number;

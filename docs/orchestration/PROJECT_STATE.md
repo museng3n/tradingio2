@@ -24,10 +24,9 @@
 - Best & Worst slice completed and published.
 
 ## Current Accepted Local Checkpoint
-- Local `HEAD`: `c7ab246049708ebfe5d8a3d7c2d08cb91e976352`
-- Subject: `Complete Profit & Loss summary contract`
-- Current `origin/main`: `805efd84ad6d27bd37529a9f55c9daa8dc7072fa`
-- Local branch is ahead of `origin/main` by one accepted checkpoint.
+- Local `HEAD` at the start of the current milestone matched the published orchestration baseline `759d0dfe3d92ef6f8fe587a57f5cc58d46e1ebc8`.
+- Profit & Loss frontend binding is the current accepted local milestone in progress on top of that published baseline.
+- Current `origin/main` at milestone start: `759d0dfe3d92ef6f8fe587a57f5cc58d46e1ebc8`
 - Accepted unrelated local extras:
   - `IMPORTANT STARTUP RULE FOR THIS CHA.txt`
   - `frontend/proposals/`
@@ -42,6 +41,6 @@
   - otherwise show gray/de-emphasized state with a very short tooltip indicating insufficient data
 
 ## Current High-Priority Direction
-1. Publish the accepted Profit & Loss backend checkpoint.
-2. Then bind the Profit & Loss frontend card truthfully.
-3. Then apply the approved Sharpe gray/de-emphasized plus short-tooltip behavior when the 60-observation rule is not met.
+1. Publish the accepted Profit & Loss frontend binding checkpoint.
+2. Then continue with the next narrow analytics milestone from the live repo state.
+3. Preserve the approved Sharpe insufficient-data behavior unless a future truthful backend Sharpe data path is accepted.

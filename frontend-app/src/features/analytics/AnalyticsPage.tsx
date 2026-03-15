@@ -90,11 +90,18 @@ export function AnalyticsPage(): JSX.Element {
   const winRateValue = formatPercentage(data?.winRate);
   const profitFactorValue = formatRatio(data?.profitFactor);
   const avgRiskRewardValue = formatRiskReward(data?.avgRiskReward);
+  const netProfitValue = formatSignedCurrency(data?.totalProfit);
+  const totalProfitValue = formatSignedCurrency(data?.totalWinningProfit);
+  const totalLossValue = formatSignedCurrency(data?.totalLosingProfit);
   const largestWinValue = formatSignedCurrency(data?.largestWin);
   const largestLossValue = formatSignedCurrency(data?.largestLoss);
   const maxDrawdownPercentValue = formatNullablePercentage(data?.maxDrawdownPercent);
   const maxDrawdownAmountValue = formatSignedCurrency(data?.maxDrawdownAmount);
   const avgHoldDurationValue = formatHoldDuration(data?.avgHoldDurationMs);
+  const sharpeRatioRaw = (data as { sharpeRatio?: unknown } | undefined)?.sharpeRatio;
+  const sharpeRatioValue = typeof sharpeRatioRaw === 'number' && Number.isFinite(sharpeRatioRaw)
+    ? sharpeRatioRaw.toFixed(2)
+    : null;
 
   return (
     <>
@@ -186,7 +193,7 @@ export function AnalyticsPage(): JSX.Element {
               </svg>
               NET PROFIT
             </div>
-            <div className="text-3xl font-bold text-green-400">+$0.00</div>
+            <div className="text-3xl font-bold text-green-400">{netProfitValue}</div>
           </div>
 
           <div>
@@ -196,7 +203,7 @@ export function AnalyticsPage(): JSX.Element {
               </svg>
               TOTAL PROFIT
             </div>
-            <div className="text-3xl font-bold text-green-400">+$0.00</div>
+            <div className="text-3xl font-bold text-green-400">{totalProfitValue}</div>
           </div>
 
           <div>
@@ -206,7 +213,7 @@ export function AnalyticsPage(): JSX.Element {
               </svg>
               TOTAL LOSS
             </div>
-            <div className="text-3xl font-bold text-red-400">+$0.00</div>
+            <div className="text-3xl font-bold text-red-400">{totalLossValue}</div>
           </div>
 
           <div>
@@ -216,7 +223,10 @@ export function AnalyticsPage(): JSX.Element {
               </svg>
               SHARPE RATIO
             </div>
-            <div className="text-3xl font-bold text-white">0.00</div>
+            <div className={sharpeRatioValue === null ? 'text-3xl font-bold text-gray-500' : 'text-3xl font-bold text-white'}>
+              {sharpeRatioValue ?? 'N/A'}
+            </div>
+            {sharpeRatioValue === null ? <div className="text-xs text-gray-500 mt-1">Insufficient data</div> : null}
           </div>
         </div>
       </div>

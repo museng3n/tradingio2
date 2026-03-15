@@ -23,11 +23,14 @@
 - Drawdown persistence slice completed and published.
 - Best & Worst slice completed and published.
 - Profit & Loss slice completed and published.
+- TP Achievement Statistics slice completed and published.
 
 ## Current Published Baseline
-- Local `HEAD`: `6e9850a850855c124cad80129dbd4a70488c7efb`
-- Current `origin/main`: `6e9850a850855c124cad80129dbd4a70488c7efb`
+- Local `HEAD`: `e8512e659080b8f67003f7f4ebd0487f18c26bea`
+- Current `origin/main`: `e8512e659080b8f67003f7f4ebd0487f18c26bea`
 - Published commits now on `origin/main`:
+  - `353ff3cf5a714f0b4c54d0161b99c2c309d3eac7` `Implement TP achievement statistics contract`
+  - `e8512e659080b8f67003f7f4ebd0487f18c26bea` `Bind TP achievement statistics surface`
   - `51602be360e101402fb432f3c6de995cbf24e0bb` `Bind Profit & Loss frontend to published summary contract`
   - `6e9850a850855c124cad80129dbd4a70488c7efb` `Correct Sharpe orchestration contract wording`
 - Accepted unrelated local extras:
@@ -42,7 +45,14 @@
 - Later frontend Sharpe rule:
   - compute only when at least 60 daily return observations are available
   - otherwise show gray/de-emphasized state with the static inline hint `Insufficient data`
+- TP Achievement Statistics accepted semantics:
+  - time-based analytics surface
+  - supported TP levels are `1..6` only
+  - hit-rate denominator is the number of closed positions that actually had that TP level configured
+  - unsupported or unverified normalization must not fabricate pips
+  - partial normalization coverage is exposed truthfully
+  - persistent normalization override entry/storage was not implemented in the published milestone
 
 ## Current High-Priority Direction
-1. Begin the TP Achievement Statistics corrective contract-spec phase.
-2. Preserve the published Profit & Loss semantics and approved Sharpe insufficient-data inline hint behavior.
+1. Determine the next post-TP product milestone from live repo evidence only.
+2. Preserve the published TP Achievement Statistics semantics, deferred normalization override fact, and approved Sharpe inline-hint behavior.

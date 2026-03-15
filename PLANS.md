@@ -1,14 +1,15 @@
 # Current Milestone
 
-- Active orchestration milestone: close the published Profit & Loss milestone cleanly and keep repo-local orchestration truthful to the live repo.
+- Active orchestration milestone: close the published TP Achievement Statistics milestone cleanly and keep repo-local orchestration truthful to the live repo.
 
 # Current Execution Path
 
-- Current published product checkpoint on `origin/main`: `6e9850a850855c124cad80129dbd4a70488c7efb` `Correct Sharpe orchestration contract wording`
+- Current published product checkpoint on `origin/main`: `e8512e659080b8f67003f7f4ebd0487f18c26bea` `Bind TP achievement statistics surface`
 - Current product milestone after this orchestration work:
-  - begin the TP Achievement Statistics corrective contract-spec phase
+  - determine the next post-TP product milestone from live repo evidence only
 
 # Guardrails
 
-- Do not reopen the published Profit & Loss milestone unless the live repo contradicts it.
+- Do not reopen the published TP Achievement Statistics milestone unless the live repo contradicts it.
+- Persistent normalization override entry/storage remains deferred and must not be treated as implemented.
 - Do not reopen accepted published slices unless they become a true prerequisite.

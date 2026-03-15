@@ -13,6 +13,8 @@ export interface DashboardSummary {
   loserCount: number;
   winRate: number;
   totalProfit: number;
+  totalWinningProfit: number;
+  totalLosingProfit: number;
   todayProfit: number;
   avgProfit: number;
   avgLoss: number;
@@ -107,6 +109,7 @@ export class StatsService {
 
       const totalWins = winners.reduce((sum, p) => sum + p.profitLoss, 0);
       const totalLosses = Math.abs(losers.reduce((sum, p) => sum + p.profitLoss, 0));
+      const totalLosingProfit = losers.reduce((sum, p) => sum + p.profitLoss, 0);
 
       const avgProfit = winners.length > 0 ? totalWins / winners.length : 0;
       const avgLoss = losers.length > 0 ? totalLosses / losers.length : 0;
@@ -129,6 +132,8 @@ export class StatsService {
         loserCount: losers.length,
         winRate: closedPositions.length > 0 ? (winners.length / closedPositions.length) * 100 : 0,
         totalProfit: Math.round(totalProfit * 100) / 100,
+        totalWinningProfit: Math.round(totalWins * 100) / 100,
+        totalLosingProfit: Math.round(totalLosingProfit * 100) / 100,
         todayProfit: Math.round(todayProfit * 100) / 100,
         avgProfit: Math.round(avgProfit * 100) / 100,
         avgLoss: Math.round(avgLoss * 100) / 100,

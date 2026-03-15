@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 import logger from '../../utils/logger';
 import { websocketService } from '../../websocket/server';
+import AccountValueSnapshot from '../../models/AccountValueSnapshot';
 
 export interface MT5AccountInfo {
   balance: number;
@@ -92,6 +93,8 @@ export class MT5ConnectionService extends EventEmitter {
 
       // Start heartbeat
       this.startHeartbeat();
+
+      await this.persistAccountValueSnapshot();
 
       // Emit connection status
       this.emit('connected', this.accountInfo);
@@ -301,6 +304,8 @@ export class MT5ConnectionService extends EventEmitter {
 
     this.heartbeatInterval = setInterval(async () => {
       try {
+        await this.persistAccountValueSnapshot();
+
         // In production, send heartbeat to MT5
         // For now, just emit event
         this.emit('heartbeat', { timestamp: new Date() });
@@ -356,6 +361,45 @@ export class MT5ConnectionService extends EventEmitter {
         await this.connect(this.credentials, this.userId);
       }
     }, delay);
+  }
+
+  private async persistAccountValueSnapshot(): Promise<void> {
+    if (!this.userId || !this.credentials || !this.accountInfo) {
+      return;
+    }
+
+    const { balance, equity, currency } = this.accountInfo;
+    if (![balance, equity].every((value) => Number.isFinite(value)) || typeof currency !== 'string' || currency.trim().length === 0) {
+      return;
+    }
+
+    const lineageFilter = {
+      userId: this.userId,
+      mt5Account: this.credentials.account,
+      mt5Server: this.credentials.server
+    };
+
+    const latestSnapshot = await AccountValueSnapshot.findOne(lineageFilter)
+      .sort({ observedAt: -1 })
+      .select('balance equity currency')
+      .lean();
+
+    if (
+      latestSnapshot
+      && latestSnapshot.balance === balance
+      && latestSnapshot.equity === equity
+      && latestSnapshot.currency === currency.toUpperCase()
+    ) {
+      return;
+    }
+
+    await AccountValueSnapshot.create({
+      ...lineageFilter,
+      observedAt: new Date(),
+      balance,
+      equity,
+      currency: currency.toUpperCase()
+    });
   }
 }
 

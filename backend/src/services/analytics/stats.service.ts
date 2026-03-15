@@ -1,5 +1,7 @@
 import Position from '../../models/Position';
 import Signal from '../../models/Signal';
+import User from '../../models/User';
+import AccountValueSnapshot from '../../models/AccountValueSnapshot';
 import tpStrategyService from '../trading/tp-strategy.service';
 import logger from '../../utils/logger';
 
@@ -17,6 +19,8 @@ export interface DashboardSummary {
   profitFactor: number;
   largestWin: number;
   largestLoss: number;
+  maxDrawdownPercent: number | null;
+  maxDrawdownAmount: number | null;
   currentStreak: number;
   bestStreak: number;
   avgRiskReward: number | null;
@@ -113,6 +117,7 @@ export class StatsService {
       // Calculate streaks
       const { currentStreak, bestStreak } = this.calculateStreaks(closedPositions);
       const avgRiskRewardSummary = this.calculateAvgRiskReward(allPositions);
+      const maxDrawdownSummary = await this.calculateMaxDrawdown(userId);
 
       return {
         totalPositions: allPositions.length,
@@ -128,6 +133,8 @@ export class StatsService {
         profitFactor: profitFactor === Infinity ? 999 : Math.round(profitFactor * 100) / 100,
         largestWin: Math.round(largestWin * 100) / 100,
         largestLoss: Math.round(largestLoss * 100) / 100,
+        maxDrawdownPercent: maxDrawdownSummary.maxDrawdownPercent,
+        maxDrawdownAmount: maxDrawdownSummary.maxDrawdownAmount,
         currentStreak,
         bestStreak,
         avgRiskReward: avgRiskRewardSummary.avgRiskReward,
@@ -139,6 +146,66 @@ export class StatsService {
       logger.error('Error getting dashboard summary:', error);
       throw error;
     }
+  }
+
+  private async calculateMaxDrawdown(userId: string): Promise<{
+    maxDrawdownPercent: number | null;
+    maxDrawdownAmount: number | null;
+  }> {
+    const user = await User.findById(userId).select('mt5Credentials.account mt5Credentials.server').lean();
+    const account = user?.mt5Credentials?.account;
+    const server = user?.mt5Credentials?.server;
+
+    if (!account || !server) {
+      return {
+        maxDrawdownPercent: null,
+        maxDrawdownAmount: null
+      };
+    }
+
+    const snapshots = await AccountValueSnapshot.find({
+      userId,
+      mt5Account: account,
+      mt5Server: server
+    })
+      .sort({ observedAt: 1 })
+      .select('equity observedAt')
+      .lean();
+
+    const validSnapshots = snapshots.filter((snapshot) =>
+      typeof snapshot.equity === 'number' && Number.isFinite(snapshot.equity) && snapshot.equity > 0
+    );
+
+    if (validSnapshots.length < 2) {
+      return {
+        maxDrawdownPercent: null,
+        maxDrawdownAmount: null
+      };
+    }
+
+    let peakEquity = validSnapshots[0].equity;
+    let maxDrawdownAmount = 0;
+    let maxDrawdownPercent = 0;
+
+    for (const snapshot of validSnapshots.slice(1)) {
+      if (snapshot.equity > peakEquity) {
+        peakEquity = snapshot.equity;
+        continue;
+      }
+
+      const drawdownAmount = peakEquity - snapshot.equity;
+      const drawdownPercent = (drawdownAmount / peakEquity) * 100;
+
+      if (drawdownAmount > maxDrawdownAmount) {
+        maxDrawdownAmount = drawdownAmount;
+        maxDrawdownPercent = drawdownPercent;
+      }
+    }
+
+    return {
+      maxDrawdownPercent: Math.round(maxDrawdownPercent * 100) / 100,
+      maxDrawdownAmount: Math.round(maxDrawdownAmount * 100) / 100
+    };
   }
 
   private calculateAvgRiskReward(

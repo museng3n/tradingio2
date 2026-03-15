@@ -14,6 +14,9 @@ export interface AnalyticsSummaryResponse {
   profitFactor: number;
   largestWin: number;
   largestLoss: number;
+  maxDrawdownPercent: number | null;
+  maxDrawdownAmount: number | null;
+  avgHoldDurationMs: number | null;
   currentStreak: number;
   bestStreak: number;
   avgRiskReward: number | null;

@@ -17,8 +17,20 @@ const formatWinLossSummary = (winnerCount: number | undefined, loserCount: numbe
 const formatPercentage = (value: number | undefined): string =>
   typeof value === 'number' && Number.isFinite(value) ? `${value.toFixed(2)}%` : '-';
 
+const formatNullablePercentage = (value: number | null | undefined): string =>
+  typeof value === 'number' && Number.isFinite(value) ? `${value.toFixed(2)}%` : 'N/A';
+
 const formatRatio = (value: number | undefined): string =>
   typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : '-';
+
+const formatSignedCurrency = (value: number | null | undefined): string => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return 'N/A';
+  }
+
+  const sign = value >= 0 ? '+' : '-';
+  return `${sign}$${Math.abs(value).toFixed(2)}`;
+};
 
 const formatRiskReward = (value: number | null | undefined): string => {
   if (value === null) {
@@ -26,6 +38,28 @@ const formatRiskReward = (value: number | null | undefined): string => {
   }
 
   return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : '-';
+};
+
+const formatHoldDuration = (value: number | null | undefined): string => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return 'N/A';
+  }
+
+  const totalMinutes = Math.round(value / 60000);
+
+  if (totalMinutes < 60) {
+    return `${totalMinutes}m`;
+  }
+
+  if (totalMinutes < 1440) {
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${hours}h ${minutes}m`;
+  }
+
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  return `${days}d ${hours}h`;
 };
 
 export function AnalyticsPage(): JSX.Element {
@@ -56,6 +90,11 @@ export function AnalyticsPage(): JSX.Element {
   const winRateValue = formatPercentage(data?.winRate);
   const profitFactorValue = formatRatio(data?.profitFactor);
   const avgRiskRewardValue = formatRiskReward(data?.avgRiskReward);
+  const largestWinValue = formatSignedCurrency(data?.largestWin);
+  const largestLossValue = formatSignedCurrency(data?.largestLoss);
+  const maxDrawdownPercentValue = formatNullablePercentage(data?.maxDrawdownPercent);
+  const maxDrawdownAmountValue = formatSignedCurrency(data?.maxDrawdownAmount);
+  const avgHoldDurationValue = formatHoldDuration(data?.avgHoldDurationMs);
 
   return (
     <>
@@ -203,7 +242,7 @@ export function AnalyticsPage(): JSX.Element {
               </svg>
               LARGEST WIN
             </div>
-            <div className="text-3xl font-bold text-green-400">+$0.00</div>
+            <div className="text-3xl font-bold text-green-400">{largestWinValue}</div>
           </div>
 
           <div>
@@ -218,7 +257,7 @@ export function AnalyticsPage(): JSX.Element {
               </svg>
               LARGEST LOSS
             </div>
-            <div className="text-3xl font-bold text-red-400">+$0.00</div>
+            <div className="text-3xl font-bold text-red-400">{largestLossValue}</div>
           </div>
 
           <div>
@@ -228,8 +267,8 @@ export function AnalyticsPage(): JSX.Element {
               </svg>
               MAX DRAWDOWN
             </div>
-            <div className="text-3xl font-bold text-white">0.00%</div>
-            <div className="text-sm text-gray-500">+$0.00</div>
+            <div className="text-3xl font-bold text-white">{maxDrawdownPercentValue}</div>
+            <div className="text-sm text-gray-500">{maxDrawdownAmountValue}</div>
           </div>
 
           <div>
@@ -239,7 +278,7 @@ export function AnalyticsPage(): JSX.Element {
               </svg>
               AVG HOLD TIME
             </div>
-            <div className="text-3xl font-bold text-white">N/A</div>
+            <div className="text-3xl font-bold text-white">{avgHoldDurationValue}</div>
           </div>
         </div>
       </div>

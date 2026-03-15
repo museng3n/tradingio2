@@ -21,6 +21,7 @@ export interface DashboardSummary {
   largestLoss: number;
   maxDrawdownPercent: number | null;
   maxDrawdownAmount: number | null;
+  avgHoldDurationMs: number | null;
   currentStreak: number;
   bestStreak: number;
   avgRiskReward: number | null;
@@ -118,6 +119,7 @@ export class StatsService {
       const { currentStreak, bestStreak } = this.calculateStreaks(closedPositions);
       const avgRiskRewardSummary = this.calculateAvgRiskReward(allPositions);
       const maxDrawdownSummary = await this.calculateMaxDrawdown(userId);
+      const avgHoldDurationMs = this.calculateAvgHoldDurationMs(closedPositions);
 
       return {
         totalPositions: allPositions.length,
@@ -135,6 +137,7 @@ export class StatsService {
         largestLoss: Math.round(largestLoss * 100) / 100,
         maxDrawdownPercent: maxDrawdownSummary.maxDrawdownPercent,
         maxDrawdownAmount: maxDrawdownSummary.maxDrawdownAmount,
+        avgHoldDurationMs,
         currentStreak,
         bestStreak,
         avgRiskReward: avgRiskRewardSummary.avgRiskReward,
@@ -206,6 +209,28 @@ export class StatsService {
       maxDrawdownPercent: Math.round(maxDrawdownPercent * 100) / 100,
       maxDrawdownAmount: Math.round(maxDrawdownAmount * 100) / 100
     };
+  }
+
+  private calculateAvgHoldDurationMs(positions: Array<{
+    status: string;
+    openedAt?: Date;
+    closedAt?: Date;
+  }>): number | null {
+    const eligibleDurations = positions
+      .filter((position) =>
+        position.status === 'CLOSED'
+        && position.openedAt instanceof Date
+        && position.closedAt instanceof Date
+        && position.closedAt.getTime() >= position.openedAt.getTime()
+      )
+      .map((position) => position.closedAt!.getTime() - position.openedAt!.getTime());
+
+    if (eligibleDurations.length === 0) {
+      return null;
+    }
+
+    const totalDurationMs = eligibleDurations.reduce((sum, duration) => sum + duration, 0);
+    return Math.round(totalDurationMs / eligibleDurations.length);
   }
 
   private calculateAvgRiskReward(
